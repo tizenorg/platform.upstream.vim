@@ -1,0 +1,14 @@
+diff -rupN vim73.orig/runtime/filetype.vim vim73/runtime/filetype.vim
+--- vim73.orig/runtime/filetype.vim	2010-08-03 22:44:00.000000000 +0200
++++ vim73/runtime/filetype.vim	2010-11-21 05:43:34.224214064 +0100
+@@ -113,6 +113,10 @@ au BufNewFile,BufRead proftpd.conf*		cal
+ au BufNewFile,BufRead .htaccess,/etc/httpd/*.conf		 setf apache
+ au BufNewFile,BufRead httpd.conf*,srm.conf*,access.conf*,apache.conf*,apache2.conf*,/etc/apache2/*.conf*,/etc/httpd/conf.d/*.conf* call s:StarSetf('apache')
+ 
++" AppArmor
++au BufNewFile,BufRead */etc/apparmor.d/*	setf apparmor
++au BufNewFile,BufRead */etc/apparmor/profiles/*	setf apparmor
++
+ " XA65 MOS6510 cross assembler
+ au BufNewFile,BufRead *.a65			setf a65
+ 

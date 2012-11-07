@@ -1,0 +1,12 @@
+diff -rup vim73.orig/src/auto/configure vim73/src/auto/configure
+--- vim73.orig/src/auto/configure	2010-08-13 16:17:15.000000000 +0200
++++ vim73/src/auto/configure	2010-11-21 05:34:08.471088555 +0100
+@@ -6197,7 +6197,7 @@ $as_echo "$rubyhdrdir" >&6; }
+ 	if test "X$librubyarg" != "X"; then
+ 	  RUBY_LIBS="$librubyarg $RUBY_LIBS"
+ 	fi
+-	rubyldflags=`$vi_cv_path_ruby -r rbconfig -e 'print Config::CONFIG["LDFLAGS"]'`
++	rubyldflags=`$vi_cv_path_ruby -r rbconfig -e 'print Config::CONFIG["LDFLAGS"]' | sed 's/\\\\,/,/g'`
+ 	if test "X$rubyldflags" != "X"; then
+ 	  	  	  	  rubyldflags=`echo "$rubyldflags" | sed -e 's/-arch\ ppc//' -e 's/-arch\ i386//' -e 's/-arch\ x86_64//'`
+ 	  if test "X$rubyldflags" != "X"; then
