@@ -1,0 +1,92 @@
+diff -rup vim73.orig/src/diff.c vim73/src/diff.c
+--- vim73.orig/src/diff.c	2010-07-31 15:35:21.000000000 +0200
++++ vim73/src/diff.c	2010-11-21 06:17:00.897968023 +0100
+@@ -42,7 +42,7 @@ static void diff_check_unchanged __ARGS(
+ static int diff_check_sanity __ARGS((tabpage_T *tp, diff_T *dp));
+ static void diff_redraw __ARGS((int dofold));
+ static int diff_write __ARGS((buf_T *buf, char_u *fname));
+-static void diff_file __ARGS((char_u *tmp_orig, char_u *tmp_new, char_u *tmp_diff));
++static int diff_file __ARGS((char_u *tmp_orig, char_u *tmp_new, char_u *tmp_diff));
+ static int diff_equal_entry __ARGS((diff_T *dp, int idx1, int idx2));
+ static int diff_cmp __ARGS((char_u *s1, char_u *s2));
+ #ifdef FEAT_FOLDING
+@@ -664,6 +664,7 @@ ex_diffupdate(eap)
+     char_u	*tmp_diff;
+     FILE	*fd;
+     int		ok;
++    int		retval = 0;
+     int		io_error = FALSE;
+ 
+     /* Delete all diffblocks. */
+@@ -716,7 +717,7 @@ ex_diffupdate(eap)
+ 		if (fwrite("line2\n", (size_t)6, (size_t)1, fd) != 1)
+ 		    io_error = TRUE;
+ 		fclose(fd);
+-		diff_file(tmp_orig, tmp_new, tmp_diff);
++		retval = diff_file(tmp_orig, tmp_new, tmp_diff);
+ 		fd = mch_fopen((char *)tmp_diff, "r");
+ 		if (fd == NULL)
+ 		    io_error = TRUE;
+@@ -762,6 +763,12 @@ ex_diffupdate(eap)
+ 	}
+ #endif
+ 
++	/* diff returned an error */
++	if (retval == 2) {
++	    ok = FALSE;
++	    break;
++	}
++
+ 	/* If we checked if "-a" works already, break here. */
+ 	if (diff_a_works != MAYBE)
+ 	    break;
+@@ -796,10 +803,13 @@ ex_diffupdate(eap)
+ 	    continue;
+ 	if (diff_write(buf, tmp_new) == FAIL)
+ 	    continue;
+-	diff_file(tmp_orig, tmp_new, tmp_diff);
+-
+-	/* Read the diff output and add each entry to the diff list. */
+-	diff_read(idx_orig, idx_new, tmp_diff);
++	retval = diff_file(tmp_orig, tmp_new, tmp_diff);
++	if(retval == 2)
++	    EMSG(_("E97: Cannot create diffs"));
++	else {
++	    /* Read the diff output and add each entry to the diff list. */
++	    diff_read(idx_orig, idx_new, tmp_diff);
++	}
+ 	mch_remove(tmp_diff);
+ 	mch_remove(tmp_new);
+     }
+@@ -819,13 +829,14 @@ theend:
+ /*
+  * Make a diff between files "tmp_orig" and "tmp_new", results in "tmp_diff".
+  */
+-    static void
++    static int
+ diff_file(tmp_orig, tmp_new, tmp_diff)
+     char_u	*tmp_orig;
+     char_u	*tmp_new;
+     char_u	*tmp_diff;
+ {
+     char_u	*cmd;
++    int		retval=0;
+     size_t	len;
+ 
+ #ifdef FEAT_EVAL
+@@ -861,13 +872,14 @@ diff_file(tmp_orig, tmp_new, tmp_diff)
+ #ifdef FEAT_AUTOCMD
+ 	    block_autocmds();	/* Avoid ShellCmdPost stuff */
+ #endif
+-	    (void)call_shell(cmd, SHELL_FILTER|SHELL_SILENT|SHELL_DOOUT);
++	    retval = call_shell(cmd, SHELL_FILTER|SHELL_SILENT|SHELL_DOOUT);
+ #ifdef FEAT_AUTOCMD
+ 	    unblock_autocmds();
+ #endif
+ 	    vim_free(cmd);
+ 	}
+     }
++    return retval;
+ }
+ 
+ /*

@@ -1,0 +1,33 @@
+diff -rup vim73.orig/runtime/filetype.vim vim73/runtime/filetype.vim
+--- vim73.orig/runtime/filetype.vim	2010-08-03 22:44:00.000000000 +0200
++++ vim73/runtime/filetype.vim	2010-11-21 05:57:07.132983365 +0100
+@@ -1897,7 +1897,7 @@ endfunc
+ 
+ 
+ " Spec (Linux RPM)
+-au BufNewFile,BufRead *.spec			setf spec
++au BufNewFile,BufRead *.spec,*.spec.in		setf spec
+ 
+ " Speedup (AspenTech plant simulator)
+ au BufNewFile,BufRead *.speedup,*.spdata,*.spd	setf spup
+diff -rup vim73.orig/runtime/syntax/spec.vim vim73/runtime/syntax/spec.vim
+--- vim73.orig/runtime/syntax/spec.vim	2010-05-15 13:03:57.000000000 +0200
++++ vim73/runtime/syntax/spec.vim	2010-11-21 05:57:07.130970392 +0100
+@@ -104,7 +104,7 @@ syn case ignore
+ "%% PreAmble Section %%
+ "Copyright and Serial were deprecated by License and Epoch
+ syn region specPreAmbleDeprecated oneline matchgroup=specError start='^\(Copyright\|Serial\)' end='$' contains=specEmail,specURL,specURLMacro,specLicense,specColon,specVariables,specSpecialChar,specMacroIdentifier
+-syn region specPreAmble oneline matchgroup=specCommand start='^\(Prereq\|Summary\|Name\|Version\|Packager\|Requires\|Icon\|URL\|Source\d*\|Patch\d*\|Prefix\|Packager\|Group\|License\|Release\|BuildRoot\|Distribution\|Vendor\|Provides\|ExclusiveArch\|ExcludeArch\|ExclusiveOS\|Obsoletes\|BuildArch\|BuildArchitectures\|BuildRequires\|BuildConflicts\|BuildPreReq\|Conflicts\|AutoRequires\|AutoReq\|AutoReqProv\|AutoProv\|Epoch\)' end='$' contains=specEmail,specURL,specURLMacro,specLicense,specColon,specVariables,specSpecialChar,specMacroIdentifier
++syn region specPreAmble oneline matchgroup=specCommand start='^\(Prereq\|Summary\|Name\|Version\|Packager\|Requires\|Icon\|URL\|Source\d*\|Patch\d*\|Prefix\|Packager\|Group\|License\|Release\|BuildRoot\|Distribution\|Vendor\|Provides\|ExclusiveArch\|ExcludeArch\|ExclusiveOS\|Obsoletes\|BuildArch\|BuildArchitectures\|BuildRequires\|BuildConflicts\|BuildPreReq\|Conflicts\|AutoRequires\|AutoReq\|AutoReqProv\|AutoProv\|Epoch\|Recommends\|Suggests\|Freshens\|EssentialFor\|Supplements\|Enhances\)' end='$' contains=specEmail,specURL,specURLMacro,specLicense,specColon,specVariables,specSpecialChar,specMacroIdentifier
+ 
+ "%% Description Section %%
+ syn region specDescriptionArea matchgroup=specSection start='^%description' end='^%'me=e-1 contains=specDescriptionOpts,specEmail,specURL,specNumber,specMacroIdentifier,specComment
+@@ -113,7 +113,7 @@ syn region specDescriptionArea matchgrou
+ syn region specPackageArea matchgroup=specSection start='^%package' end='^%'me=e-1 contains=specPackageOpts,specPreAmble,specComment
+ 
+ "%% Scripts Section %%
+-syn region specScriptArea matchgroup=specSection start='^%\(prep\|build\|install\|clean\|pre\|postun\|preun\|post\)\>' skip='^%{\|^%\(define\|patch\d*\|configure\|GNUconfigure\|setup\|find_lang\|makeinstall\)\>' end='^%'me=e-1 contains=specSpecialVariables,specVariables,@specCommands,specVariables,shDo,shFor,shCaseEsac,specNoNumberHilite,specCommandOpts,shComment,shIf,specSpecialChar,specMacroIdentifier,specSectionMacroArea,specSectionMacroBracketArea,shOperator,shQuote1,shQuote2
++syn region specScriptArea matchgroup=specSection start='^%\(prep\|check\|build\|install\|clean\|pre\|postun\|preun\|post\)\>' skip='^%{\|^%\(define\|patch\d*\|configure\|GNUconfigure\|setup\|find_lang\|makeinstall\)\>' end='^%'me=e-1 contains=specSpecialVariables,specVariables,@specCommands,specVariables,shDo,shFor,shCaseEsac,specNoNumberHilite,specCommandOpts,shComment,shIf,specSpecialChar,specMacroIdentifier,specSectionMacroArea,specSectionMacroBracketArea,shOperator,shQuote1,shQuote2
+ 
+ "%% Changelog Section %%
+ syn region specChangelogArea matchgroup=specSection start='^%changelog' end='^%'me=e-1 contains=specEmail,specURL,specWeekday,specMonth,specNumber,specComment,specLicense
