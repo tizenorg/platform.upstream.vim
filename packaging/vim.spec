@@ -4,43 +4,18 @@
 %define site_runtimepath /usr/share/vim/site
 
 Name:           vim
-Version:        7.3.%{official_ptchlvl}
+Version:        7.3
 Release:        0
-License:        SUSE-Vim
+License:        VIM LICENSE
 #
 Summary:        Vi IMproved
 #
 Url:            http://www.vim.org/
 Group:          Productivity/Editors/Vi
-Source:         ftp://ftp.vim.org/pub/vim/unix/vim-%{pkg_version}.tar.bz2
-Source3:        suse.vimrc
-Source6:        ANNOUNCEMENT.vim-%{pkg_version}
-Source13:       vitmp.c
-Source14:       vitmp.1
-Source15:       vim132
-Source18:       missing-vim-client
-Source20:       spec.skeleton
-Source23:       apparmor.vim
+Source:         ftp://ftp.vim.org/pub/vim/unix/vim-7.3.tar.bz2
+Source3:        tizen.vimrc
 Source98:       %{name}-7.3-patches.tar.bz2
 Source99:       %{name}-7.3-rpmlintrc
-Patch3:         %{name}-7.3-disable_lang_no.patch
-Patch4:         %{name}-7.3-gvimrc_fontset.patch
-Patch5:         %{name}-7.3-highlight_fstab.patch
-Patch6:         %{name}-7.3-sh_is_bash.patch
-Patch7:         %{name}-7.3-filetype_ftl.patch
-Patch8:         %{name}-7.3-help_tags.patch
-Patch9:         %{name}-7.3-use_awk.patch
-Patch10:        %{name}-7.3-name_vimrc.patch
-Patch11:        %{name}-7.3-mktemp_tutor.patch
-Patch12:        %{name}-7.3-ruby_ldflags_configure.patch
-Patch14:        %{name}-7.3-grub.patch
-Patch15:        %{name}-7.3-filetype_apparmor.patch
-Patch18:        %{name}-7.3-filetype_spec.patch
-Patch19:        %{name}-7.3-diff_check.patch
-Patch21:        %{name}-7.3-filetype_changes.patch
-Patch22:        %{name}-7.3-filetype_mine.patch
-Patch100:       vim-7.1.314-CVE-2009-0316-debian.patch
-Patch101:       vim73-no-static-libpython.patch
 BuildRequires:  autoconf
 BuildRequires:  db4-devel
 BuildRequires:  fdupes
@@ -144,7 +119,7 @@ install the base package 'vim', for online help, etc. If you need the
 graphical features of vim, you might want to install package gvim too.
 
 %prep
-%setup -q -n %{VIM_SUBDIR} -b 98
+%setup -q -n vim73 -b 98
 for p in ../vim-%{pkg_version}-patches/%{pkg_version}*; do
     test -e $p || break
     test ${p#*/%{pkg_version}.} -le %{official_ptchlvl} || exit 1
@@ -152,26 +127,7 @@ for p in ../vim-%{pkg_version}-patches/%{pkg_version}*; do
     patch -s -p0 < $p
 done
 unset p
-%patch3 -p1
-%patch4 -p1
-%patch5 -p1
-%patch6 -p1
-%patch7 -p1
-%patch8 -p1
-%patch9 -p1
-%patch10 -p1
-%patch11 -p1
-%patch12 -p1
-%patch14 -p1
-%patch15 -p1
-cp %{SOURCE23} runtime/syntax/apparmor.vim
-%patch18 -p1
-%patch19 -p1
-%patch21 -p1
-%patch22 -p1
-%patch100 -p1
-%patch101
-cp %{SOURCE3} %{SOURCE6} .
+cp %{SOURCE3}  .
 
 # newer perl? ugly hack to fix build anyway.
 sed -i -e 's/^XS(XS_/XS_INTERNAL(XS_/' src/if_perl.xs
@@ -188,7 +144,7 @@ export COMMON_OPTIONS="\
     --enable-multibyte \
     --enable-sniff \
     --with-features=huge \
-    --with-compiledby='http://www.opensuse.org/' \
+    --with-compiledby='http://www.tizen.org/' \
     --with-tlib=tinfo \
     --with-global-runtime=%{site_runtimepath}"
 export SCRIPT_OPTIONS="\
@@ -218,8 +174,6 @@ cp src/vim vim-enhanced
 #make distclean
 #
 #
-# build vitmp
-gcc %{optflags} %{SOURCE13} -o vitmp
 
 %install
 # create icon directory to have the icon from the tarball installed
@@ -249,10 +203,6 @@ mkdir -p %{buildroot}%{_mandir}/man1
 ln -s -f vim.1.gz %{buildroot}%{_mandir}/man1/vi.1.gz
 ln -s -f vim.1.gz %{buildroot}%{_mandir}/man1/ex.1.gz
 
-# vitmp
-install -m 0755 vitmp   %{buildroot}%{_bindir}/vitmp
-install -m 0644 %{SOURCE14} %{buildroot}%{_mandir}/man1/vitmp.1
-install -m 0755 %{SOURCE15} %{buildroot}%{_datadir}/vim/%{VIM_SUBDIR}/tools/vim132
 
 # make the vim settings more generic
 ln -s -f %{VIM_SUBDIR} %{buildroot}%{_datadir}/vim/current
@@ -272,21 +222,16 @@ mkdir -m 0755 %{buildroot}%{site_runtimepath}/after/syntax
 mkdir -m 0755 %{buildroot}%{_datadir}/vim/current/skeletons
 mkdir -m 0755 %{buildroot}%{_sysconfdir}/skel
 
-# install spec helper
-install -m 0644 %{SOURCE20}  %{buildroot}%{_datadir}/vim/current/skeletons/skeleton.spec
-
 
 #
 # documentation
 install -d -m 0755 %{buildroot}%{_docdir}/{,g}vim/
 cp runtime/doc/uganda.txt LICENSE
 install -D -m 0644 \
-    suse.vimrc \
-    LICENSE README.txt README_src.txt README_unix.txt ANNOUNCEMENT.vim-7.3 \
+    tizen.vimrc \
+    LICENSE README.txt README_src.txt README_unix.txt \
   %{buildroot}%{_docdir}/vim/
 #
-# stupid helper
-install -m 0755 %{SOURCE18} %{buildroot}%{_datadir}/vim/current/tools/missing-vim-client
 # remove unecessary duplicate manpages
 rm -rf %{buildroot}%{_mandir}/fr.ISO8859-1/
 rm -rf %{buildroot}%{_mandir}/fr.UTF-8/
@@ -360,7 +305,6 @@ fi
 %{_bindir}/view
 %{_bindir}/vimdiff
 # additional binaries
-%{_bindir}/vitmp
 %{_bindir}/vimtutor
 %{_bindir}/xxd
 # docs and data file
@@ -406,10 +350,6 @@ fi
 %{_datadir}/vim/%{VIM_SUBDIR}/optwin.vim
 %{_datadir}/vim/%{VIM_SUBDIR}/scripts.vim
 %{_datadir}/vim/%{VIM_SUBDIR}/syntax/syntax.vim
-%{_datadir}/vim/%{VIM_SUBDIR}/skeletons/skeleton.spec
-# stupid helper
-# THIS BREAKS THE BUILD: %{_datadir}/vim/current/tools/missing-vim-client
-%{_datadir}/vim/%{VIM_SUBDIR}/tools/missing-vim-client
 
 %files data
 %defattr(-,root,root,-)
@@ -443,8 +383,8 @@ fi
 %{_datadir}/vim/%{VIM_SUBDIR}/tools/shtags.1
 %{_datadir}/vim/%{VIM_SUBDIR}/tools/shtags.pl
 %{_datadir}/vim/%{VIM_SUBDIR}/tools/unicode.vim
-%{_datadir}/vim/%{VIM_SUBDIR}/tools/vim132
 %{_datadir}/vim/%{VIM_SUBDIR}/tools/vimm
+%{_datadir}/vim/%{VIM_SUBDIR}/tools/vim132
 %{_datadir}/vim/%{VIM_SUBDIR}/tools/vimspell.sh
 %{_datadir}/vim/%{VIM_SUBDIR}/tools/vimspell.txt
 %{_datadir}/vim/%{VIM_SUBDIR}/tools/vim_vs_net.cmd

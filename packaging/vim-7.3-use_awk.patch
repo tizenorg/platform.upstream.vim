@@ -1,9 +1,0 @@
-diff -rup vim73.orig/runtime/tools/mve.awk vim73/runtime/tools/mve.awk
---- vim73.orig/runtime/tools/mve.awk	2010-05-15 13:04:00.000000000 +0200
-+++ vim73/runtime/tools/mve.awk	2010-11-21 05:22:46.096963787 +0100
-@@ -1,4 +1,4 @@
--#!/usr/bin/nawk -f
-+#!/usr/bin/awk -f
- #
- # Change "nawk" to "awk" or "gawk" if you get errors.
- #
