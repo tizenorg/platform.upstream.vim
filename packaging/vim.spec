@@ -25,13 +25,10 @@ BuildRequires:  perl
 BuildRequires:  pkgconfig
 BuildRequires:  python-devel
 BuildRequires:  systemd
-#Requires(pre):         update-alternatives
+Requires(pre):         update-alternatives
 #
 Provides:       vi
 Provides:       vim_client
-#
-BuildRoot:      %{_tmppath}/%{name}-%{version}-build
-#
 %define make make VIMRCLOC=/etc VIMRUNTIMEDIR=/usr/share/vim/current MAKE="make -e" %{?jobs:-j%jobs}
 #
 %define vim_prereq %{name}-base = %{version}
@@ -261,9 +258,6 @@ rm -rf %{buildroot}%{_datadir}/icons/hicolor/48x48/apps
 /usr/sbin/update-alternatives --install \
     /usr/bin/vim        vim  /usr/bin/vim-normal          15
 
-%post base
-/usr/sbin/update-alternatives --install \
-    /usr/bin/vim        vim  %{_datadir}/vim/current/tools/missing-vim-client    0
 
 %post enhanced
 /usr/sbin/update-alternatives --install \
@@ -275,10 +269,6 @@ if [ "$1" = 0 ] ; then
     /usr/sbin/update-alternatives --remove vim /usr//bin/vim-normal
 fi
 
-%preun base
-if [ "$1" = 0 ] ; then
-    /usr/sbin/update-alternatives --remove vim %{_datadir}/vim/current/tools/missing-vim-client
-fi
 
 %preun enhanced
 if [ "$1" = 0 ] ; then
