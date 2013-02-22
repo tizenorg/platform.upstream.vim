@@ -369,7 +369,7 @@ fi
 %{_datadir}/vim/%{VIM_SUBDIR}/tools/shtags.pl
 %{_datadir}/vim/%{VIM_SUBDIR}/tools/unicode.vim
 %{_datadir}/vim/%{VIM_SUBDIR}/tools/vimm
-%{_datadir}/vim/%{VIM_SUBDIR}/tools/vim132
+%exclude %{_datadir}/vim/%{VIM_SUBDIR}/tools/vim132
 %{_datadir}/vim/%{VIM_SUBDIR}/tools/vimspell.sh
 %{_datadir}/vim/%{VIM_SUBDIR}/tools/vimspell.txt
 %{_datadir}/vim/%{VIM_SUBDIR}/tools/vim_vs_net.cmd
