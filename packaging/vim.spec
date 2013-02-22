@@ -1,5 +1,5 @@
 %define pkg_version 7.3
-%define official_ptchlvl 566
+%define official_ptchlvl 822
 %define VIM_SUBDIR vim73
 %define site_runtimepath /usr/share/vim/site
 
