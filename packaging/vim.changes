@@ -1,3 +1,6 @@
+* Thu Feb 21 2013 Anas Nashif <anas.nashif@intel.com> accepted/trunk/20130114.135547@ee3cf07
+- Use /etc/vimrc as system config gile
+
 * Sun Jan 13 2013 Anas Nashif <anas.nashif@intel.com> upstream/7.3@39756a4
 - do not use missing-client
 
