@@ -29,7 +29,6 @@ Requires(pre):         update-alternatives
 #
 Provides:       vi
 Provides:       vim_client
-%define make make VIMRCLOC=/etc VIMRUNTIMEDIR=/usr/share/vim/current MAKE="make -e" %{?jobs:-j%jobs}
 #
 %define vim_prereq %{name}-base = %{version}
 # Explicitly require versioned perl for libperl.so
@@ -45,8 +44,6 @@ file name completion, block operations, and editing of binary data.
 
 Vi is available for the AMIGA, MS-DOS, Windows NT, and various versions
 of UNIX.
-
-For SUSE Linux, Vim is used as /usr/bin/vi.
 
 Package vim contains the normal version of vim. To get the full runtime
 environment install additionally vim-data.
@@ -66,8 +63,6 @@ file name completion, block operations, and editing of binary data.
 
 Vi is available for the AMIGA, MS-DOS, Windows NT, and various versions
 of UNIX.
-
-For SUSE Linux, Vim is used as /usr/bin/vi.
 
 Package vim-data contains the runtime files.
 
@@ -98,6 +93,7 @@ want to install the vim-data package.
 Summary:        A version of the VIM editor which includes recent enhancements
 Group:          Productivity/Editors/Vi
 Requires:       %{perl_requires}
+Requires:       vim-data
 Provides:       vi
 Provides:       vim_client
 Requires(pre):         %{vim_prereq}
@@ -159,14 +155,14 @@ popd
     --disable-perlinterp --disable-pythoninterp \
     --disable-rubyinterp --disable-tclinterp
 sed -i -e 's|define HAVE_DATE_TIME 1|undef HAVE_DATE_TIME|' src/auto/config.h
-%make
+make VIMRCLOC=/etc VIMRUNTIMEDIR=/usr/share/vim/current MAKE="make -e" %{?jobs:-j%jobs}
 cp src/vim vim-normal
 make distclean
 #
 # build enhanced binary
 %configure ${COMMON_OPTIONS} ${SCRIPT_OPTIONS} --disable-gui
 sed -i -e 's|define HAVE_DATE_TIME 1|undef HAVE_DATE_TIME|' src/auto/config.h
-%make
+make VIMRCLOC=/etc VIMRUNTIMEDIR=/usr/share/vim/current MAKE="make -e" %{?jobs:-j%jobs}
 cp src/vim vim-enhanced
 #make distclean
 #
@@ -175,7 +171,6 @@ cp src/vim vim-enhanced
 %install
 # create icon directory to have the icon from the tarball installed
 install -d -m 0755 %{buildroot}%{_datadir}/icons/hicolor/48x48/apps
-#%make_install STRIP=:
 
 cd src
 make install DESTDIR=%{buildroot} BINDIR=%{_bindir} VIMRCLOC=/etc VIMRUNTIMEDIR=%{site_runtimepath}
