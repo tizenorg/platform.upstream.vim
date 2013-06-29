@@ -16,6 +16,7 @@ Source:         ftp://ftp.vim.org/pub/vim/unix/vim-7.3.tar.bz2
 Source3:        tizen.vimrc
 Source98:       %{name}-7.3-patches.tar.bz2
 Source99:       %{name}-7.3-rpmlintrc
+Source1001: 	vim.manifest
 BuildRequires:  autoconf
 BuildRequires:  db4-devel
 BuildRequires:  fdupes
@@ -113,6 +114,7 @@ graphical features of vim, you might want to install package gvim too.
 
 %prep
 %setup -q -n vim73 -b 98
+cp %{SOURCE1001} .
 for p in ../vim-%{pkg_version}-patches/%{pkg_version}*; do
     test -e $p || break
     test ${p#*/%{pkg_version}.} -le %{official_ptchlvl} || exit 1
@@ -274,10 +276,12 @@ fi
 %docs_package
 
 %files
+%manifest %{name}.manifest
 %defattr(-,root,root,-)
 %{_bindir}/vim-normal
 
 %files base
+%manifest %{name}.manifest
 %defattr(-,root,root,-)
 %config(noreplace) %{_sysconfdir}/vimrc
 %ghost %{_sysconfdir}/alternatives/vim
@@ -337,6 +341,7 @@ fi
 %{_datadir}/vim/%{VIM_SUBDIR}/syntax/syntax.vim
 
 %files data
+%manifest %{name}.manifest
 %defattr(-,root,root,-)
 # data files
 %{_datadir}/vim/%{VIM_SUBDIR}/autoload/*
@@ -383,6 +388,7 @@ fi
 %{_datadir}/vim/%{VIM_SUBDIR}/vimrc_example.vim
 
 %files enhanced
+%manifest %{name}.manifest
 %defattr(-,root,root,-)
 %{_bindir}/vim-enhanced
 
