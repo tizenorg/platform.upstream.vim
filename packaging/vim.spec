@@ -11,7 +11,7 @@ License:        VIM LICENSE
 Summary:        Vi IMproved
 #
 Url:            http://www.vim.org/
-Group:          Productivity/Editors/Vi
+Group:          Base/Utilities
 Source:         ftp://ftp.vim.org/pub/vim/unix/vim-7.3.tar.bz2
 Source3:        tizen.vimrc
 Source98:       %{name}-7.3-patches.tar.bz2
@@ -51,7 +51,6 @@ environment install additionally vim-data.
 
 %package data
 Summary:        Vi IMproved
-Group:          Productivity/Editors/Vi
 BuildArch:      noarch
 Requires(pre):         %{vim_prereq}
 
@@ -69,7 +68,6 @@ Package vim-data contains the runtime files.
 
 %package base
 Summary:        Vi IMproved
-Group:          Productivity/Editors/Vi
 Requires(pre):         %{vim_prereq}
 Requires(pre):         update-alternatives
 
@@ -92,7 +90,6 @@ want to install the vim-data package.
 
 %package enhanced
 Summary:        A version of the VIM editor which includes recent enhancements
-Group:          Productivity/Editors/Vi
 Requires:       %{perl_requires}
 Requires:       vim-data
 Provides:       vi
@@ -223,7 +220,7 @@ install -d -m 0755 %{buildroot}%{_docdir}/{,g}vim/
 cp runtime/doc/uganda.txt LICENSE
 install -D -m 0644 \
     tizen.vimrc \
-    LICENSE README.txt README_src.txt README_unix.txt \
+    README.txt README_src.txt README_unix.txt \
   %{buildroot}%{_docdir}/vim/
 #
 # remove unecessary duplicate manpages
@@ -277,6 +274,7 @@ fi
 
 %files
 %manifest %{name}.manifest
+%license LICENSE
 %defattr(-,root,root,-)
 %{_bindir}/vim-normal
 
