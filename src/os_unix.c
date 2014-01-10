@@ -46,6 +46,14 @@
 static int selinux_enabled = -1;
 #endif
 
+#ifdef HAVE_SMACK
+# include <attr/xattr.h>
+# include <linux/xattr.h>
+# ifndef SMACK_LABEL_LEN
+#  define SMACK_LABEL_LEN 1024
+# endif
+#endif
+
 /*
  * Use this prototype for select, some include files have a wrong prototype
  */
@@ -2706,6 +2714,39 @@ mch_copy_sec(from_file, to_file)
     }
 }
 #endif /* HAVE_SELINUX */
+
+#if defined(HAVE_SMACK)
+/*
+ * Copy security info from "from_file" to "to_file".
+ */
+    void
+mch_copy_sec(from_file, to_file)
+    char_u	*from_file;
+    char_u	*to_file;
+{
+    static const char const *smack_copied_attributes[] = {
+	    XATTR_NAME_SMACK,
+	    XATTR_NAME_SMACKEXEC,
+	    XATTR_NAME_SMACKMMAP
+	};
+    char buffer[SMACK_LABEL_LEN];
+    int index;
+    int ret;
+    ssize_t size;
+
+    if (from_file == NULL)
+	return;
+
+    for (index = 0 ; index < (int)(sizeof smack_copied_attributes / sizeof smack_copied_attributes[0]) ; index++)
+    {
+	size = getxattr((char*)from_file, smack_copied_attributes[index], buffer, sizeof buffer);
+	if (size >= 0)
+	    ret = setxattr((char*)to_file, smack_copied_attributes[index], buffer, (size_t)size, 0);
+	else
+	    ret = removexattr((char*)to_file, smack_copied_attributes[index]);
+    }
+}
+#endif /* HAVE_SMACK */
 
 /*
  * Return a pointer to the ACL of file "fname" in allocated memory.
