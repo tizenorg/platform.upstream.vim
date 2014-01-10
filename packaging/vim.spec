@@ -27,6 +27,7 @@ BuildRequires:  systemd
 %if %{smack}
 BuildRequires:	libattr-devel
 Requires:		libattr
+Requires:		libcap-tools
 %endif
 Provides:       vi
 Provides:       vim_client
@@ -255,11 +256,12 @@ rm -rf %{buildroot}%{_datadir}/icons/hicolor/48x48/apps
 %post
 /usr/sbin/update-alternatives --install \
     /usr/bin/vim        vim  /usr/bin/vim-normal          15
-
+setcap cap_mac_admin+p-i /usr/bin/vim-normal
 
 %post enhanced
 /usr/sbin/update-alternatives --install \
     /usr/bin/vim        vim  %{_bindir}/vim-enhanced  20
+setcap cap_mac_admin+p-i /usr/bin/vim-enhanced
 
 
 %preun
