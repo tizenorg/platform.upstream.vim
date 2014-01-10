@@ -1,6 +1,7 @@
 %define official_ptchlvl 822
 %define VIM_SUBDIR vim73
 %define site_runtimepath /usr/share/vim/site
+%define smack 1
 
 Name:           vim
 Version:        7.3
@@ -23,6 +24,9 @@ BuildRequires:  perl
 BuildRequires:  pkgconfig
 BuildRequires:  python-devel
 BuildRequires:  systemd
+%if %{smack}
+BuildRequires:	libattr-devel
+%endif
 Provides:       vi
 Provides:       vim_client
 Requires(pre):  update-alternatives
@@ -124,6 +128,10 @@ export CFLAGS="%{optflags} -Wall -pipe -fno-strict-aliasing"
 export CFLAGS=${CFLAGS/-D_FORTIFY_SOURCE=2/-D_FORTIFY_SOURCE=1}
 
 export COMMON_OPTIONS="\
+%if %{smack}
+	--disable-selinux \
+	--enable-smack \
+%endif
     --with-vim-name=vim \
     --with-ex-name=ex \
     --with-view-name=view \
