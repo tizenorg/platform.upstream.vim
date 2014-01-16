@@ -4,7 +4,7 @@
 # Authors:	Zoltan Arpadffy, <arpadffy@polarhome.com>
 #		Sandor Kopanyi,  <sandor.kopanyi@mailbox.hu>
 #
-# Last change:  2010 Aug 04
+# Last change:  2013 Jul 09
 #
 # This has been tested on VMS 6.2 to 8.3 on DEC Alpha, VAX and IA64.
 # Edit the lines in the Configuration section below to select.
@@ -74,7 +74,11 @@ SCRIPT = test1.out  test2.out  test3.out  test4.out  test5.out  \
 	 test56.out test57.out test60.out \
 	 test61.out test62.out test63.out test64.out test65.out \
 	 test66.out test67.out test68.out test69.out \
-	 test71.out test72.out
+	 test71.out test72.out test74.out test75.out test76.out \
+	 test77.out test78.out test79.out test80.out test81.out \
+	 test82.out test83.out test84.out test88.out test89.out \
+	 test90.out test91.out test92.out test93.out test94.out \
+	 test95.out test96.out test97.out test98.out
 
 # Known problems:
 # Test 30: a problem around mac format - unknown reason
@@ -87,6 +91,7 @@ SCRIPT = test1.out  test2.out  test3.out  test4.out  test5.out  \
 # with too many dots).
 #
 # Test 72: unknown reason
+# Test 85: no Lua interface
 
 .IFDEF WANT_GUI
 SCRIPT_GUI = test16.out
@@ -181,5 +186,6 @@ clean :
 	-@ if "''F$SEARCH("small.vim")'"    .NES. "" then delete/noconfirm/nolog small.vim.*
 	-@ if "''F$SEARCH("mbyte.vim")'"    .NES. "" then delete/noconfirm/nolog mbyte.vim.*
 	-@ if "''F$SEARCH("mzscheme.vim")'" .NES. "" then delete/noconfirm/nolog mzscheme.vim.*
+	-@ if "''F$SEARCH("lua.vim")'" .NES. "" then delete/noconfirm/nolog lua.vim.*
 	-@ if "''F$SEARCH("viminfo.*")'"    .NES. "" then delete/noconfirm/nolog viminfo.*.*
 

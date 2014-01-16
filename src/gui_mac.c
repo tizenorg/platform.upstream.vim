@@ -41,7 +41,7 @@
 #define USE_AEVENT		/* Enable AEVENT */
 #undef USE_OFFSETED_WINDOW	/* Debugging feature: start Vim window OFFSETed */
 
-/* Compile as CodeWarior External Editor */
+/* Compile as CodeWarrior External Editor */
 #if defined(FEAT_CW_EDITOR) && !defined(USE_AEVENT)
 # define USE_AEVENT /* Need Apple Event Support */
 #endif
@@ -1478,9 +1478,9 @@ GetFontPanelSelection(char_u *outName)
 /*
  *  gui_mac_get_menu_item_index
  *
- *  Returns the index inside the menu wher
+ *  Returns the index inside the menu where
  */
-    short /* Shoulde we return MenuItemIndex? */
+    short /* Should we return MenuItemIndex? */
 gui_mac_get_menu_item_index(vimmenu_T *pMenu)
 {
     short	index;
@@ -1693,7 +1693,7 @@ gui_mac_doInContentClick(EventRecord *theEvent, WindowPtr whichWindow)
 
     if (theControl != NUL)
     {
-	/* We hit a scollbar */
+	/* We hit a scrollbar */
 
 	if (thePortion != kControlIndicatorPart)
 	{
@@ -1823,7 +1823,7 @@ gui_mac_doInZoomClick(EventRecord *theEvent, WindowPtr whichWindow)
 	p.h += gui.scrollbar_width;
     if (gui.which_scrollbars[SBAR_RIGHT])
 	p.h += gui.scrollbar_width;
-    /* ideal height is as heigh as we can get */
+    /* ideal height is as high as we can get */
     p.v = 15 * 1024;
 
     thePart = IsWindowInStandardState(whichWindow, &p, &r)
@@ -1840,7 +1840,7 @@ gui_mac_doInZoomClick(EventRecord *theEvent, WindowPtr whichWindow)
 	p.v -= gui.scrollbar_height;
     p.v -= p.v % gui.char_height;
     p.v += 2 * gui.border_width;
-    if (gui.which_scrollbars[SBAR_BOTTOM]);
+    if (gui.which_scrollbars[SBAR_BOTTOM])
 	p.v += gui.scrollbar_height;
 
     ZoomWindowIdeal(whichWindow, thePart, &p);
@@ -2630,7 +2630,7 @@ gui_mac_handle_contextual_menu(event)
     {
 	/* Handle the menu CntxMenuID, CntxMenuItem */
 	/* The submenu can be handle directly by gui_mac_handle_menu */
-	/* But what about the current menu, is the meny changed by ContextualMenuSelect */
+	/* But what about the current menu, is the many changed by ContextualMenuSelect */
 	gui_mac_handle_menu((CntxMenuID << 16) + CntxMenuItem);
     }
     else if (CntxMenuID == kCMShowHelpSelected)
@@ -3216,7 +3216,7 @@ gui_mch_new_colors(void)
 {
     /* TODO:
      * This proc is called when Normal is set to a value
-     * so what msut be done? I don't know
+     * so what must be done? I don't know
      */
 }
 
@@ -3303,7 +3303,6 @@ gui_mch_get_winpos(int *x, int *y)
     *x = bounds.left;
     *y = bounds.top;
     return OK;
-    return FAIL;
 }
 
 /*
@@ -4481,7 +4480,7 @@ gui_mch_wait_for_chars(int wtime)
 	 * event arrives.  No need to check for input_buf_full because we are
 	 * returning as soon as it contains a single char.
 	 */
-	/* TODO: reduce wtime accordinly???  */
+	/* TODO: reduce wtime accordingly???  */
 	if (wtime > -1)
 	    sleeppyTick = 60 * wtime / 1000;
 	else
@@ -4671,7 +4670,7 @@ clip_mch_request_selection(VimClipboard *cbd)
     if (flavor)
 	type = **textOfClip;
     else
-	type = (strchr(*textOfClip, '\r') != NULL) ? MLINE : MCHAR;
+	type = MAUTO;
 
     tempclip = lalloc(scrapSize + 1, TRUE);
     mch_memmove(tempclip, *textOfClip + flavor, scrapSize);
@@ -5357,7 +5356,7 @@ gui_mch_browse(
     char_u *initdir,
     char_u *filter)
 {
-    /* TODO: Add Ammon's safety checl (Dany) */
+    /* TODO: Add Ammon's safety check (Dany) */
     NavReplyRecord	reply;
     char_u		*fname = NULL;
     char_u		**fnames = NULL;
@@ -5583,7 +5582,8 @@ gui_mch_dialog(
     char_u	*message,
     char_u	*buttons,
     int		dfltbutton,
-    char_u	*textfield)
+    char_u	*textfield,
+    int		ex_cmd)
 {
     Handle	buttonDITL;
     Handle	iconDITL;
@@ -5704,7 +5704,7 @@ gui_mch_dialog(
 
 	/* Resize the button to fit its name */
 	width = StringWidth(name) + 2 * dfltButtonEdge;
-	/* Limite the size of any button to an acceptable value. */
+	/* Limit the size of any button to an acceptable value. */
 	/* TODO: Should be based on the message width */
 	if (width > maxButtonWidth)
 	    width = maxButtonWidth;
@@ -5723,13 +5723,13 @@ gui_mch_dialog(
     iconDITL = GetResource('DITL', 131);
     switch (type)
     {
-	case VIM_GENERIC:  useIcon = kNoteIcon;
-	case VIM_ERROR:    useIcon = kStopIcon;
-	case VIM_WARNING:  useIcon = kCautionIcon;
-	case VIM_INFO:     useIcon = kNoteIcon;
-	case VIM_QUESTION: useIcon = kNoteIcon;
-	default:      useIcon = kStopIcon;
-    };
+	case VIM_GENERIC:
+	case VIM_INFO:
+	case VIM_QUESTION: useIcon = kNoteIcon; break;
+	case VIM_WARNING:  useIcon = kCautionIcon; break;
+	case VIM_ERROR:    useIcon = kStopIcon; break;
+	default:	   useIcon = kStopIcon;
+    }
     AppendDITL(theDialog, iconDITL, overlayDITL);
     ReleaseResource(iconDITL);
     GetDialogItem(theDialog, iconItm.idx, &itemType, &itemHandle, &box);
@@ -5887,12 +5887,12 @@ gui_mch_dialog(
     /* Free the modal filterProc */
     DisposeRoutineDescriptor(dialogUPP);
 
-    /* Get ride of th edialog (free memory) */
+    /* Get ride of the dialog (free memory) */
     DisposeDialog(theDialog);
 
     return itemHit;
 /*
- * Usefull thing which could be used
+ * Useful thing which could be used
  * SetDialogTimeout(): Auto click a button after timeout
  * SetDialogTracksCursor() : Get the I-beam cursor over input box
  * MoveDialogItem():	    Probably better than SetDialogItem
@@ -5967,9 +5967,9 @@ gui_mch_setmouse(int x, int y)
 	/* New way */
 
 	/*
-	 * Get first devoice with one button.
-	 * This will probably be the standad mouse
-	 * startat head of cursor dev list
+	 * Get first device with one button.
+	 * This will probably be the standard mouse
+	 * start at head of cursor dev list
 	 *
 	 */
 
@@ -6100,7 +6100,7 @@ gui_mch_settitle(char_u *title, char_u *icon)
 #endif
 
 /*
- * Transfered from os_mac.c for MacOS X using os_unix.c prep work
+ * Transferred from os_mac.c for MacOS X using os_unix.c prep work
  */
 
     int
@@ -6151,7 +6151,7 @@ GetFSSpecFromPath(char_u *file, FSSpec *fileFSSpec)
 }
 
 /*
- * Convert a FSSpec to a fuill path
+ * Convert a FSSpec to a full path
  */
 
 char_u *FullPathFromFSSpec_save(FSSpec file)
@@ -6215,8 +6215,8 @@ char_u *FullPathFromFSSpec_save(FSSpec file)
 
 #ifdef USE_UNIXFILENAME
     /*
-     * The function used here are available in Carbon, but
-     * do nothing une MacOS 8 and 9
+     * The functions used here are available in Carbon, but do nothing on
+     * MacOS 8 and 9.
      */
     if (error == fnfErr)
     {
@@ -6543,8 +6543,8 @@ getTabLabel(tabpage_T *page)
 static ControlRef dataBrowser = NULL;
 
 // when the tabline is hidden, vim doesn't call update_tabline(). When
-// the tabline is shown again, show_tabline() is called before upate_tabline(),
-// and because of this, the tab labels and vims internal tabs are out of sync
+// the tabline is shown again, show_tabline() is called before update_tabline(),
+// and because of this, the tab labels and vim's internal tabs are out of sync
 // for a very short time. to prevent inconsistent state, we store the labels
 // of the tabs, not pointers to the tabs (which are invalid for a short time).
 static CFStringRef *tabLabels = NULL;
@@ -6578,7 +6578,7 @@ dbItemDataCallback(ControlRef browser,
 
     // assert(property == kTabsColumn); // why is this violated??
 
-    // changeValue is true if we have a modifieable list and data was changed.
+    // changeValue is true if we have a modifiable list and data was changed.
     // In our case, it's always false.
     // (that is: if (changeValue) updateInternalData(); else return
     // internalData();

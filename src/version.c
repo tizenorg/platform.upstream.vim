@@ -34,6 +34,7 @@ static char	*mediumVersion = VIM_VERSION_MEDIUM;
 # if (defined(VMS) && defined(VAXC)) || defined(PROTO)
 char	longVersion[sizeof(VIM_VERSION_LONG_DATE) + sizeof(__DATE__)
 						      + sizeof(__TIME__) + 3];
+
     void
 make_version()
 {
@@ -54,6 +55,7 @@ char	*longVersion = VIM_VERSION_LONG_DATE __DATE__ " " __TIME__ ")";
 char	*longVersion = VIM_VERSION_LONG;
 #endif
 
+static void list_features __ARGS((void));
 static void version_msg __ARGS((char *s));
 
 static char *(features[]) =
@@ -348,6 +350,7 @@ static char *(features[]) =
 # else
 	"-mouse",
 #endif
+
 #if defined(UNIX) || defined(VMS)
 # ifdef FEAT_MOUSE_DEC
 	"+mouse_dec",
@@ -369,17 +372,8 @@ static char *(features[]) =
 # else
 	"-mouse_netterm",
 # endif
-# ifdef FEAT_SYSMOUSE
-	"+mouse_sysmouse",
-# else
-	"-mouse_sysmouse",
-# endif
-# ifdef FEAT_MOUSE_XTERM
-	"+mouse_xterm",
-# else
-	"-mouse_xterm",
-# endif
 #endif
+
 #ifdef __QNX__
 # ifdef FEAT_MOUSE_PTERM
 	"+mouse_pterm",
@@ -387,6 +381,30 @@ static char *(features[]) =
 	"-mouse_pterm",
 # endif
 #endif
+
+#if defined(UNIX) || defined(VMS)
+# ifdef FEAT_MOUSE_SGR
+	"+mouse_sgr",
+# else
+	"-mouse_sgr",
+# endif
+# ifdef FEAT_SYSMOUSE
+	"+mouse_sysmouse",
+# else
+	"-mouse_sysmouse",
+# endif
+# ifdef FEAT_MOUSE_URXVT
+	"+mouse_urxvt",
+# else
+	"-mouse_urxvt",
+# endif
+# ifdef FEAT_MOUSE_XTERM
+	"+mouse_xterm",
+# else
+	"-mouse_xterm",
+# endif
+#endif
+
 #ifdef FEAT_MBYTE_IME
 # ifdef DYNAMIC_IME
 	"+multi_byte_ime/dyn",
@@ -425,11 +443,6 @@ static char *(features[]) =
 # else
 	"-ole",
 # endif
-#endif
-#ifdef FEAT_OSFILETYPE
-	"+osfiletype",
-#else
-	"-osfiletype",
 #endif
 #ifdef FEAT_PATH_EXTRA
 	"+path_extra",
@@ -774,6 +787,76 @@ ex_version(eap)
     }
 }
 
+/*
+ * List all features aligned in columns, dictionary style.
+ */
+    static void
+list_features()
+{
+    int		i;
+    int		ncol;
+    int		nrow;
+    int		nfeat = 0;
+    int		width = 0;
+
+    /* Find the length of the longest feature name, use that + 1 as the column
+     * width */
+    for (i = 0; features[i] != NULL; ++i)
+    {
+	int l = (int)STRLEN(features[i]);
+
+	if (l > width)
+	    width = l;
+	++nfeat;
+    }
+    width += 1;
+
+    if (Columns < width)
+    {
+	/* Not enough screen columns - show one per line */
+	for (i = 0; features[i] != NULL; ++i)
+	{
+	    version_msg(features[i]);
+	    if (msg_col > 0)
+		msg_putchar('\n');
+	}
+	return;
+    }
+
+    /* The rightmost column doesn't need a separator.
+     * Sacrifice it to fit in one more column if possible. */
+    ncol = (int) (Columns + 1) / width;
+    nrow = nfeat / ncol + (nfeat % ncol ? 1 : 0);
+
+    /* i counts columns then rows.  idx counts rows then columns. */
+    for (i = 0; !got_int && i < nrow * ncol; ++i)
+    {
+	int idx = (i / ncol) + (i % ncol) * nrow;
+
+	if (idx < nfeat)
+	{
+	    int last_col = (i + 1) % ncol == 0;
+
+	    msg_puts((char_u *)features[idx]);
+	    if (last_col)
+	    {
+		if (msg_col > 0)
+		    msg_putchar('\n');
+	    }
+	    else
+	    {
+		while (msg_col % width)
+		    msg_putchar(' ');
+	    }
+	}
+	else
+	{
+	    if (msg_col > 0)
+		msg_putchar('\n');
+	}
+    }
+}
+
     void
 list_version()
 {
@@ -833,9 +916,6 @@ list_version()
 # endif
 #endif
 
-#ifdef RISCOS
-    MSG_PUTS(_("\nRISC OS version"));
-#endif
 #ifdef VMS
     MSG_PUTS(_("\nOpenVMS version"));
 # ifdef HAVE_PATHDEF
@@ -974,15 +1054,8 @@ list_version()
 #endif
     version_msg(_("  Features included (+) or not (-):\n"));
 
-    /* print all the features */
-    for (i = 0; features[i] != NULL; ++i)
-    {
-	version_msg(features[i]);
-	if (msg_col > 0)
-	    version_msg(" ");
-    }
+    list_features();
 
-    version_msg("\n");
 #ifdef SYS_VIMRC_FILE
     version_msg(_("   system vimrc file: \""));
     version_msg(SYS_VIMRC_FILE);
@@ -1091,6 +1164,21 @@ version_msg(s)
 }
 
 static void do_intro_line __ARGS((int row, char_u *mesg, int add_version, int attr));
+
+/*
+ * Show the intro message when not editing a file.
+ */
+    void
+maybe_intro_message()
+{
+    if (bufempty()
+	    && curbuf->b_fname == NULL
+#ifdef FEAT_WINDOWS
+	    && firstwin->w_next == NULL
+#endif
+	    && vim_strchr(p_shm, SHM_INTRO) == NULL)
+	intro_message(FALSE);
+}
 
 /*
  * Give an introductory message about Vim.
@@ -1262,14 +1350,11 @@ do_intro_line(row, mesg, add_version, attr)
 	if (highest_patch())
 	{
 	    /* Check for 9.9x or 9.9xx, alpha/beta version */
-	    if (isalpha((int)mediumVersion[3]))
+	    if (isalpha((int)vers[3]))
 	    {
-		if (isalpha((int)mediumVersion[4]))
-		    sprintf((char *)vers + 5, ".%d%s", highest_patch(),
-							   mediumVersion + 5);
-		else
-		    sprintf((char *)vers + 4, ".%d%s", highest_patch(),
-							   mediumVersion + 4);
+		int len = (isalpha((int)vers[4])) ? 5 : 4;
+		sprintf((char *)vers + len, ".%d%s", highest_patch(),
+							 mediumVersion + len);
 	    }
 	    else
 		sprintf((char *)vers + 3, ".%d", highest_patch());

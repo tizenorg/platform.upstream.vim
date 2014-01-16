@@ -52,7 +52,7 @@
 
 /*
  * Here are the builtin termcap entries.  They are not stored as complete
- * Tcarr structures, as such a structure is too big.
+ * structures with all entries, as such a structure is too big.
  *
  * The entries are compact, therefore they normally are included even when
  * HAVE_TGETENT is defined. When HAVE_TGETENT is defined, the builtin entries
@@ -106,11 +106,24 @@ static char_u *tgetent_error __ARGS((char_u *, char_u *));
 char		*tgetstr __ARGS((char *, char **));
 
 # ifdef FEAT_TERMRESPONSE
+    /* Change this to "if 1" to debug what happens with termresponse. */
+#  if 0
+#   define DEBUG_TERMRESPONSE
+    static void log_tr(char *msg);
+#   define LOG_TR(msg) log_tr(msg)
+#  else
+#   define LOG_TR(msg)
+#  endif
 /* Request Terminal Version status: */
 #  define CRV_GET	1	/* send T_CRV when switched to RAW mode */
 #  define CRV_SENT	2	/* did send T_CRV, waiting for answer */
 #  define CRV_GOT	3	/* received T_CRV response */
 static int crv_status = CRV_GET;
+/* Request Cursor position report: */
+#  define U7_GET	1	/* send T_U7 when switched to RAW mode */
+#  define U7_SENT	2	/* did send T_U7, waiting for answer */
+#  define U7_GOT	3	/* received T_U7 response */
+static int u7_status = U7_GET;
 # endif
 
 /*
@@ -199,71 +212,6 @@ static struct builtin_term builtin_termcaps[] =
 #endif
 
 #ifndef NO_BUILTIN_TCAPS
-# if defined(RISCOS) || defined(ALL_BUILTIN_TCAPS)
-/*
- * Default for the Acorn.
- */
-    {(int)KS_NAME,	"riscos"},
-    {(int)KS_CL,	"\014"},		/* Cls and Home Cursor */
-    {(int)KS_CM,	"\001%d\001%d\002"},	/* Position cursor */
-
-    {(int)KS_CCO,	"16"},			/* Allow 16 colors */
-
-    {(int)KS_CAF,	"\001%d\021"},		/* Set foreground colour */
-    {(int)KS_CAB,	"\001%d\022"},		/* Set background colour */
-
-
-    {(int)KS_ME,	"\004"},		/* Normal mode */
-    {(int)KS_MR,	"\005"},		/* Reverse */
-
-    {(int)KS_VI,	"\016"},		/* Cursor invisible */
-    {(int)KS_VE,	"\017"},		/* Cursor visible */
-    {(int)KS_VS,	"\020"},		/* Cursor very visible */
-
-    {(int)KS_CS,	"\001%d\001%d\003"},	/* Set scroll region */
-    {(int)KS_SR,	"\023"},		/* Scroll text down */
-    {K_UP,		"\217"},
-    {K_DOWN,		"\216"},
-    {K_LEFT,		"\214"},
-    {K_RIGHT,		"\215"},
-    {K_S_UP,		"\237"},
-    {K_S_DOWN,		"\236"},
-    {K_S_LEFT,		"\234"},
-    {K_S_RIGHT,		"\235"},
-
-    {K_F1,		"\201"},
-    {K_F2,		"\202"},
-    {K_F3,		"\203"},
-    {K_F4,		"\204"},
-    {K_F5,		"\205"},
-    {K_F6,		"\206"},
-    {K_F7,		"\207"},
-    {K_F8,		"\210"},
-    {K_F9,		"\211"},
-    {K_F10,		"\312"},
-    {K_F11,		"\313"},
-    {K_F12,		"\314"},
-    {K_S_F1,		"\221"},
-    {K_S_F2,		"\222"},
-    {K_S_F3,		"\223"},
-    {K_S_F4,		"\224"},
-    {K_S_F5,		"\225"},
-    {K_S_F6,		"\226"},
-    {K_S_F7,		"\227"},
-    {K_S_F8,		"\230"},
-    {K_S_F9,		"\231"},
-    {K_S_F10,		"\332"},
-    {K_S_F11,		"\333"},
-    {K_S_F12,		"\334"},
-    {K_BS,		"\010"},
-    {K_INS,		"\315"},
-    {K_DEL,		"\177"},
-    {K_HOME,		"\036"},
-    {K_END,		"\213"},
-    {K_PAGEUP,		"\237"},
-    {K_PAGEDOWN,	"\236"},
-# endif	/* Acorn terminal */
-
 
 # if defined(AMIGA) || defined(ALL_BUILTIN_TCAPS)
 /*
@@ -998,6 +946,7 @@ static struct builtin_term builtin_termcaps[] =
     {(int)KS_CWP,	IF_EB("\033[3;%d;%dt", ESC_STR "[3;%d;%dt")},
 #  endif
     {(int)KS_CRV,	IF_EB("\033[>c", ESC_STR "[>c")},
+    {(int)KS_U7,	IF_EB("\033[6n", ESC_STR "[6n")},
 
     {K_UP,		IF_EB("\033O*A", ESC_STR "O*A")},
     {K_DOWN,		IF_EB("\033O*B", ESC_STR "O*B")},
@@ -1286,6 +1235,7 @@ static struct builtin_term builtin_termcaps[] =
     {(int)KS_CWP,	"[%dCWP%d]"},
 #  endif
     {(int)KS_CRV,	"[CRV]"},
+    {(int)KS_U7,	"[U7]"},
     {K_UP,		"[KU]"},
     {K_DOWN,		"[KD]"},
     {K_LEFT,		"[KL]"},
@@ -1399,10 +1349,6 @@ static struct builtin_term builtin_termcaps[] =
 /*
  * DEFAULT_TERM is used, when no terminal is specified with -T option or $TERM.
  */
-#ifdef RISCOS
-# define DEFAULT_TERM	(char_u *)"riscos"
-#endif
-
 #ifdef AMIGA
 # define DEFAULT_TERM	(char_u *)"amiga"
 #endif
@@ -1665,6 +1611,7 @@ set_termname(term)
 				{KS_TS, "ts"}, {KS_FS, "fs"},
 				{KS_CWP, "WP"}, {KS_CWS, "WS"},
 				{KS_CSI, "SI"}, {KS_CEI, "EI"},
+				{KS_U7, "u7"},
 				{(enum SpecialKey)0, NULL}
 			    };
 
@@ -1922,7 +1869,9 @@ set_termname(term)
 #    ifdef FEAT_GUI
 	if (!gui.in_use)
 #    endif
+#    ifndef FEAT_CYGWIN_WIN32_CLIPBOARD
 	    clip_init(FALSE);
+#    endif
 #   endif
 	if (use_xterm_like_mouse(term))
 	{
@@ -1933,7 +1882,12 @@ set_termname(term)
 	}
 #  endif
 	if (p != NULL)
+	{
 	    set_option_value((char_u *)"ttym", 0L, p, 0);
+	    /* Reset the WAS_SET flag, 'ttymouse' can be set to "sgr" or
+	     * "xterm2" in check_termcode(). */
+	    reset_option_was_set((char_u *)"ttym");
+	}
 	if (p == NULL
 #   ifdef FEAT_GUI
 		|| gui.in_use
@@ -1990,6 +1944,7 @@ set_termname(term)
     full_screen = TRUE;		/* we can use termcap codes from now on */
     set_term_defaults();	/* use current values as defaults */
 #ifdef FEAT_TERMRESPONSE
+    LOG_TR("setting crv_status to CRV_GET");
     crv_status = CRV_GET;	/* Get terminal version later */
 #endif
 
@@ -2065,6 +2020,8 @@ set_termname(term)
 #  define HMT_DEC	4
 #  define HMT_JSBTERM	8
 #  define HMT_PTERM	16
+#  define HMT_URXVT	32
+#  define HMT_SGR	64
 static int has_mouse_termcode = 0;
 # endif
 
@@ -2098,6 +2055,16 @@ set_mouse_termcode(n, s)
 #   ifdef FEAT_MOUSE_PTERM
     if (n == KS_PTERM_MOUSE)
 	has_mouse_termcode |= HMT_PTERM;
+    else
+#   endif
+#   ifdef FEAT_MOUSE_URXVT
+    if (n == KS_URXVT_MOUSE)
+	has_mouse_termcode |= HMT_URXVT;
+    else
+#   endif
+#   ifdef FEAT_MOUSE_SGR
+    if (n == KS_SGR_MOUSE)
+	has_mouse_termcode |= HMT_SGR;
     else
 #   endif
 	has_mouse_termcode |= HMT_NORMAL;
@@ -2135,6 +2102,16 @@ del_mouse_termcode(n)
 #   ifdef FEAT_MOUSE_PTERM
     if (n == KS_PTERM_MOUSE)
 	has_mouse_termcode &= ~HMT_PTERM;
+    else
+#   endif
+#   ifdef FEAT_MOUSE_URXVT
+    if (n == KS_URXVT_MOUSE)
+	has_mouse_termcode &= ~HMT_URXVT;
+    else
+#   endif
+#   ifdef FEAT_MOUSE_SGR
+    if (n == KS_SGR_MOUSE)
+	has_mouse_termcode &= ~HMT_SGR;
     else
 #   endif
 	has_mouse_termcode &= ~HMT_NORMAL;
@@ -2979,8 +2956,10 @@ get_bytes_from_buf(buf, bytes, num_bytes)
 		return -1;
 	    if (buf[len++] == (int)KS_ZERO)
 		c = NUL;
-	    ++len;	/* skip KE_FILLER */
-	    /* else it should be KS_SPECIAL, and c already equals K_SPECIAL */
+	    /* else it should be KS_SPECIAL; when followed by KE_FILLER c is
+	     * K_SPECIAL, or followed by KE_CSI and c must be CSI. */
+	    if (buf[len++] == (int)KE_CSI)
+		c = CSI;
 	}
 	else if (c == CSI && buf[len] == KS_EXTRA
 					       && buf[len + 1] == (int)KE_CSI)
@@ -2994,15 +2973,29 @@ get_bytes_from_buf(buf, bytes, num_bytes)
 #endif
 
 /*
- * Check if the new shell size is valid, correct it if it's too small.
+ * Check if the new shell size is valid, correct it if it's too small or way
+ * too big.
  */
     void
 check_shellsize()
 {
-    if (Columns < MIN_COLUMNS)
-	Columns = MIN_COLUMNS;
     if (Rows < min_rows())	/* need room for one window and command line */
 	Rows = min_rows();
+    limit_screen_size();
+}
+
+/*
+ * Limit Rows and Columns to avoid an overflow in Rows * Columns.
+ */
+    void
+limit_screen_size()
+{
+    if (Columns < MIN_COLUMNS)
+	Columns = MIN_COLUMNS;
+    else if (Columns > 10000)
+	Columns = 10000;
+    if (Rows > 1000)
+	Rows = 1000;
 }
 
 /*
@@ -3053,10 +3046,19 @@ shell_resized_check()
     int		old_Rows = Rows;
     int		old_Columns = Columns;
 
-    (void)ui_get_shellsize();
-    check_shellsize();
-    if (old_Rows != Rows || old_Columns != Columns)
-	shell_resized();
+    if (!exiting
+#ifdef FEAT_GUI
+	    /* Do not get the size when executing a shell command during
+	     * startup. */
+	    && !gui.starting
+#endif
+	    )
+    {
+	(void)ui_get_shellsize();
+	check_shellsize();
+	if (old_Rows != Rows || old_Columns != Columns)
+	    shell_resized();
+    }
 }
 
 /*
@@ -3083,11 +3085,19 @@ set_shellsize(width, height, mustset)
     if (width < 0 || height < 0)    /* just checking... */
 	return;
 
-    if (State == HITRETURN || State == SETWSIZE) /* postpone the resizing */
+    if (State == HITRETURN || State == SETWSIZE)
     {
+	/* postpone the resizing */
 	State = SETWSIZE;
 	return;
     }
+
+    /* curwin->w_buffer can be NULL when we are closing a window and the
+     * buffer has already been closed and removing a scrollbar causes a resize
+     * event. Don't resize then, it will happen after entering another buffer.
+     */
+    if (curwin->w_buffer == NULL)
+	return;
 
     ++busy;
 
@@ -3206,7 +3216,8 @@ settmode(tmode)
 		/* May need to check for T_CRV response and termcodes, it
 		 * doesn't work in Cooked mode, an external program may get
 		 * them. */
-		if (tmode != TMODE_RAW && crv_status == CRV_SENT)
+		if (tmode != TMODE_RAW && (crv_status == CRV_SENT
+					 || u7_status == U7_SENT))
 		    (void)vpeekc_nomap();
 		check_for_codes_from_term();
 	    }
@@ -3267,9 +3278,19 @@ stoptermcap()
 	if (!gui.in_use && !gui.starting)
 # endif
 	{
-	    /* May need to check for T_CRV response. */
-	    if (crv_status == CRV_SENT)
-		(void)vpeekc_nomap();
+	    /* May need to discard T_CRV or T_U7 response. */
+	    if (crv_status == CRV_SENT || u7_status == U7_SENT)
+	    {
+# ifdef UNIX
+		/* Give the terminal a chance to respond. */
+		mch_delay(100L, FALSE);
+# endif
+# ifdef TCIFLUSH
+		/* Discard data received but not read. */
+		if (exiting)
+		    tcflush(fileno(stdin), TCIFLUSH);
+# endif
+	    }
 	    /* Check for termcodes first, otherwise an external program may
 	     * get them. */
 	    check_for_codes_from_term();
@@ -3314,6 +3335,7 @@ may_req_termresponse()
 # endif
 	    && *T_CRV != NUL)
     {
+	LOG_TR("Sending CRV");
 	out_str(T_CRV);
 	crv_status = CRV_SENT;
 	/* check for the characters now, otherwise they might be eaten by
@@ -3322,6 +3344,74 @@ may_req_termresponse()
 	(void)vpeekc_nomap();
     }
 }
+
+# if defined(FEAT_MBYTE) || defined(PROTO)
+/*
+ * Check how the terminal treats ambiguous character width (UAX #11).
+ * First, we move the cursor to (1, 0) and print a test ambiguous character
+ * \u25bd (WHITE DOWN-POINTING TRIANGLE) and query current cursor position.
+ * If the terminal treats \u25bd as single width, the position is (1, 1),
+ * or if it is treated as double width, that will be (1, 2).
+ * This function has the side effect that changes cursor position, so
+ * it must be called immediately after entering termcap mode.
+ */
+    void
+may_req_ambiguous_character_width()
+{
+    if (u7_status == U7_GET
+	    && cur_tmode == TMODE_RAW
+	    && termcap_active
+	    && p_ek
+#  ifdef UNIX
+	    && isatty(1)
+	    && isatty(read_cmd_fd)
+#  endif
+	    && *T_U7 != NUL
+	    && !option_was_set((char_u *)"ambiwidth"))
+    {
+	 char_u	buf[16];
+
+	 LOG_TR("Sending U7 request");
+	 /* Do this in the second row.  In the first row the returned sequence
+	  * may be CSI 1;2R, which is the same as <S-F3>. */
+	 term_windgoto(1, 0);
+	 buf[mb_char2bytes(0x25bd, buf)] = 0;
+	 out_str(buf);
+	 out_str(T_U7);
+	 u7_status = U7_SENT;
+	 term_windgoto(0, 0);
+	 out_str((char_u *)"  ");
+	 term_windgoto(0, 0);
+	 /* check for the characters now, otherwise they might be eaten by
+	  * get_keystroke() */
+	 out_flush();
+	 (void)vpeekc_nomap();
+    }
+}
+# endif
+
+# ifdef DEBUG_TERMRESPONSE
+    static void
+log_tr(char *msg)
+{
+    static FILE *fd_tr = NULL;
+    static proftime_T start;
+    proftime_T now;
+
+    if (fd_tr == NULL)
+    {
+	fd_tr = fopen("termresponse.log", "w");
+	profile_start(&start);
+    }
+    now = start;
+    profile_end(&now);
+    fprintf(fd_tr, "%s: %s %s\n",
+	    profile_msg(&now),
+	    must_redraw == NOT_VALID ? "NV"
+					 : must_redraw == CLEAR ? "CL" : "  ",
+	    msg);
+}
+# endif
 #endif
 
 /*
@@ -3793,6 +3883,7 @@ switch_to_8bit()
 	need_gather = TRUE;		/* need to fill termleader[] */
     }
     detected_8bit = TRUE;
+    LOG_TR("Switching to 8 bit");
 }
 #endif
 
@@ -3828,23 +3919,27 @@ set_mouse_topline(wp)
  * Check from typebuf.tb_buf[typebuf.tb_off] to typebuf.tb_buf[typebuf.tb_off
  * + max_offset].
  * Return 0 for no match, -1 for partial match, > 0 for full match.
+ * Return KEYLEN_REMOVED when a key code was deleted.
  * With a match, the match is removed, the replacement code is inserted in
  * typebuf.tb_buf[] and the number of characters in typebuf.tb_buf[] is
  * returned.
- * When "buf" is not NULL, it is used instead of typebuf.tb_buf[]. "buflen" is
- * then the length of the string in buf[].
+ * When "buf" is not NULL, buf[bufsize] is used instead of typebuf.tb_buf[].
+ * "buflen" is then the length of the string in buf[] and is updated for
+ * inserts and deletes.
  */
     int
-check_termcode(max_offset, buf, buflen)
+check_termcode(max_offset, buf, bufsize, buflen)
     int		max_offset;
     char_u	*buf;
-    int		buflen;
+    int		bufsize;
+    int		*buflen;
 {
     char_u	*tp;
     char_u	*p;
     int		slen = 0;	/* init for GCC */
     int		modslen;
     int		len;
+    int		retval = 0;
     int		offset;
     char_u	key_name[2];
     int		modifiers;
@@ -3894,8 +3989,7 @@ check_termcode(max_offset, buf, buflen)
      * Check at several positions in typebuf.tb_buf[], to catch something like
      * "x<Up>" that can be mapped. Stop at max_offset, because characters
      * after that cannot be used for mapping, and with @r commands
-     * typebuf.tb_buf[]
-     * can become very long.
+     * typebuf.tb_buf[] can become very long.
      * This is used often, KEEP IT FAST!
      */
     for (offset = 0; offset < max_offset; ++offset)
@@ -3909,10 +4003,10 @@ check_termcode(max_offset, buf, buflen)
 	}
 	else
 	{
-	    if (offset >= buflen)
+	    if (offset >= *buflen)
 		break;
 	    tp = buf + offset;
-	    len = buflen - offset;
+	    len = *buflen - offset;
 	}
 
 	/*
@@ -4064,15 +4158,32 @@ check_termcode(max_offset, buf, buflen)
 	}
 
 #ifdef FEAT_TERMRESPONSE
-	if (key_name[0] == NUL)
+	if (key_name[0] == NUL
+	    /* URXVT mouse uses <ESC>[#;#;#M, but we are matching <ESC>[ */
+	    || key_name[0] == KS_URXVT_MOUSE
+# ifdef FEAT_MBYTE
+	    || u7_status == U7_SENT
+# endif
+            )
 	{
-	    /* Check for xterm version string: "<Esc>[>{x};{vers};{y}c".  Also
-	     * eat other possible responses to t_RV, rxvt returns
-	     * "<Esc>[?1;2c".  Also accept CSI instead of <Esc>[.
-	     * mrxvt has been reported to have "+" in the version. Assume
-	     * the escape sequence ends with a letter or one of "{|}~". */
-	    if (*T_CRV != NUL && ((tp[0] == ESC && tp[1] == '[' && len >= 3)
-					       || (tp[0] == CSI && len >= 2)))
+	    /* Check for some responses from terminal start with "<Esc>[" or
+	     * CSI.
+	     *
+	     * - xterm version string: <Esc>[>{x};{vers};{y}c
+	     *   Also eat other possible responses to t_RV, rxvt returns
+	     *   "<Esc>[?1;2c". Also accept CSI instead of <Esc>[.
+	     *   mrxvt has been reported to have "+" in the version. Assume
+	     *   the escape sequence ends with a letter or one of "{|}~".
+	     *
+	     * - cursor position report: <Esc>[{row};{col}R
+	     *   The final byte is 'R'. now it is only used for checking for
+	     *   ambiguous-width character state.
+	     */
+	    p = tp[0] == CSI ? tp + 1 : tp + 2;
+	    if ((*T_CRV != NUL || *T_U7 != NUL)
+			&& ((tp[0] == ESC && tp[1] == '[' && len >= 3)
+			    || (tp[0] == CSI && len >= 2))
+			&& (VIM_ISDIGIT(*p) || *p == '>' || *p == '?'))
 	    {
 		j = 0;
 		extra = 0;
@@ -4080,14 +4191,64 @@ check_termcode(max_offset, buf, buflen)
 				&& !(tp[i] >= '{' && tp[i] <= '~')
 				&& !ASCII_ISALPHA(tp[i]); ++i)
 		    if (tp[i] == ';' && ++j == 1)
-			extra = atoi((char *)tp + i + 1);
+			extra = i + 1;
 		if (i == len)
-		    return -1;		/* not enough characters */
-
-		/* eat it when at least one digit and ending in 'c' */
-		if (i > 2 + (tp[0] != CSI) && tp[i] == 'c')
 		{
+		    LOG_TR("Not enough characters for CRV");
+		    return -1;
+		}
+
+#ifdef FEAT_MBYTE
+		/* Eat it when it has 2 arguments and ends in 'R'. Ignore it
+		 * when u7_status is not "sent", <S-F3> sends something
+		 * similar. */
+		if (j == 1 && tp[i] == 'R' && u7_status == U7_SENT)
+		{
+		    char *aw = NULL;
+
+		    LOG_TR("Received U7 status");
+		    u7_status = U7_GOT;
+# ifdef FEAT_AUTOCMD
+		    did_cursorhold = TRUE;
+# endif
+		    if (extra > 0)
+			extra = atoi((char *)tp + extra);
+		    if (extra == 2)
+			aw = "single";
+		    else if (extra == 3)
+			aw = "double";
+		    if (aw != NULL && STRCMP(aw, p_ambw) != 0)
+		    {
+			/* Setting the option causes a screen redraw. Do that
+			 * right away if possible, keeping any messages. */
+			set_option_value((char_u *)"ambw", 0L, (char_u *)aw, 0);
+#ifdef DEBUG_TERMRESPONSE
+			{
+			    char buf[100];
+			    int  r = redraw_asap(CLEAR);
+
+			    sprintf(buf, "set 'ambiwidth', redraw_asap(): %d",
+									   r);
+			    log_tr(buf);
+			}
+#else
+			redraw_asap(CLEAR);
+#endif
+		    }
+		    key_name[0] = (int)KS_EXTRA;
+		    key_name[1] = (int)KE_IGNORE;
+		    slen = i + 1;
+		}
+		else
+#endif
+		/* eat it when at least one digit and ending in 'c' */
+		if (*T_CRV != NUL && i > 2 + (tp[0] != CSI) && tp[i] == 'c')
+		{
+		    LOG_TR("Received CRV");
 		    crv_status = CRV_GOT;
+# ifdef FEAT_AUTOCMD
+		    did_cursorhold = TRUE;
+# endif
 
 		    /* If this code starts with CSI, you can bet that the
 		     * terminal uses 8-bit codes. */
@@ -4097,18 +4258,33 @@ check_termcode(max_offset, buf, buflen)
 		    /* rxvt sends its version number: "20703" is 2.7.3.
 		     * Ignore it for when the user has set 'term' to xterm,
 		     * even though it's an rxvt. */
+		    if (extra > 0)
+			extra = atoi((char *)tp + extra);
 		    if (extra > 20000)
 			extra = 0;
 
 		    if (tp[1 + (tp[0] != CSI)] == '>' && j == 2)
 		    {
-			/* if xterm version >= 95 use mouse dragging */
-			if (extra >= 95)
-			    set_option_value((char_u *)"ttym", 0L,
+			/* Only set 'ttymouse' automatically if it was not set
+			 * by the user already. */
+			if (!option_was_set((char_u *)"ttym"))
+			{
+# ifdef TTYM_SGR
+			    if (extra >= 277)
+				set_option_value((char_u *)"ttym", 0L,
+							  (char_u *)"sgr", 0);
+			    else
+# endif
+			    /* if xterm version >= 95 use mouse dragging */
+			    if (extra >= 95)
+				set_option_value((char_u *)"ttym", 0L,
 						       (char_u *)"xterm2", 0);
+			}
+
 			/* if xterm version >= 141 try to get termcap codes */
 			if (extra >= 141)
 			{
+			    LOG_TR("Enable checking for XT codes");
 			    check_for_codes = TRUE;
 			    need_gather = TRUE;
 			    req_codes_from_term();
@@ -4147,7 +4323,10 @@ check_termcode(max_offset, buf, buflen)
 		    }
 
 		if (i == len)
+		{
+		    LOG_TR("not enough characters for XT");
 		    return -1;		/* not enough characters */
+		}
 	    }
 	}
 #endif
@@ -4184,18 +4363,24 @@ check_termcode(max_offset, buf, buflen)
 	/*
 	 * If it is a mouse click, get the coordinates.
 	 */
-	if (key_name[0] == (int)KS_MOUSE
+	if (key_name[0] == KS_MOUSE
 # ifdef FEAT_MOUSE_JSB
-		|| key_name[0] == (int)KS_JSBTERM_MOUSE
+		|| key_name[0] == KS_JSBTERM_MOUSE
 # endif
 # ifdef FEAT_MOUSE_NET
-		|| key_name[0] == (int)KS_NETTERM_MOUSE
+		|| key_name[0] == KS_NETTERM_MOUSE
 # endif
 # ifdef FEAT_MOUSE_DEC
-		|| key_name[0] == (int)KS_DEC_MOUSE
+		|| key_name[0] == KS_DEC_MOUSE
 # endif
 # ifdef FEAT_MOUSE_PTERM
-		|| key_name[0] == (int)KS_PTERM_MOUSE
+		|| key_name[0] == KS_PTERM_MOUSE
+# endif
+# ifdef FEAT_MOUSE_URXVT
+		|| key_name[0] == KS_URXVT_MOUSE
+# endif
+# ifdef FEAT_MOUSE_SGR
+		|| key_name[0] == KS_SGR_MOUSE
 # endif
 		)
 	{
@@ -4275,7 +4460,101 @@ check_termcode(max_offset, buf, buflen)
 		    else
 			break;
 		}
+	    }
 
+# if defined(FEAT_MOUSE_URXVT) || defined(FEAT_MOUSE_SGR)
+	    if (key_name[0] == KS_URXVT_MOUSE
+		|| key_name[0] == KS_SGR_MOUSE)
+	    {
+		for (;;)
+		{
+		    /* URXVT 1015 mouse reporting mode:
+		     * Almost identical to xterm mouse mode, except the values
+		     * are decimal instead of bytes.
+		     *
+		     * \033[%d;%d;%dM
+		     *		  ^-- row
+		     *	       ^----- column
+		     *	    ^-------- code
+		     *
+		     * SGR 1006 mouse reporting mode:
+		     * Almost identical to xterm mouse mode, except the values
+		     * are decimal instead of bytes.
+		     *
+		     * \033[<%d;%d;%dM
+		     *		   ^-- row
+		     *	        ^----- column
+		     *	     ^-------- code
+		     *
+		     * \033[<%d;%d;%dm        : mouse release event
+		     *		   ^-- row
+		     *	        ^----- column
+		     *	     ^-------- code
+		     */
+		    p = tp + slen;
+
+		    mouse_code = getdigits(&p);
+		    if (*p++ != ';')
+			return -1;
+
+		    /* when mouse reporting is SGR, add 32 to mouse code */
+                    if (key_name[0] == KS_SGR_MOUSE)
+                        mouse_code += 32;
+
+		    mouse_col = getdigits(&p) - 1;
+		    if (*p++ != ';')
+			return -1;
+
+		    mouse_row = getdigits(&p) - 1;
+                    if (key_name[0] == KS_SGR_MOUSE && *p == 'm')
+			mouse_code |= MOUSE_RELEASE;
+                    else if (*p != 'M')
+			return -1;
+                    p++;
+
+		    slen += (int)(p - (tp + slen));
+
+		    /* skip this one if next one has same code (like xterm
+		     * case) */
+		    j = termcodes[idx].len;
+		    if (STRNCMP(tp, tp + slen, (size_t)j) == 0)
+		    {
+			int slen2;
+			int cmd_complete = 0;
+
+			/* check if the command is complete by looking for the
+			 * 'M' */
+			for (slen2 = slen; slen2 < len; slen2++)
+			{
+			    if (tp[slen2] == 'M'
+                                || (key_name[0] == KS_SGR_MOUSE
+							 && tp[slen2] == 'm'))
+			    {
+				cmd_complete = 1;
+				break;
+			    }
+			}
+			p += j;
+			if (cmd_complete && getdigits(&p) == mouse_code)
+			{
+			    slen += j; /* skip the \033[ */
+			    continue;
+			}
+		    }
+		    break;
+		}
+	    }
+# endif
+
+	if (key_name[0] == (int)KS_MOUSE
+#ifdef FEAT_MOUSE_URXVT
+	    || key_name[0] == (int)KS_URXVT_MOUSE
+#endif
+#ifdef FEAT_MOUSE_SGR
+	    || key_name[0] == KS_SGR_MOUSE
+#endif
+	    )
+	{
 #  if !defined(MSWIN) && !defined(MSDOS)
 		/*
 		 * Handle mouse events.
@@ -4940,6 +5219,13 @@ check_termcode(max_offset, buf, buflen)
 #endif
 		string[new_slen++] = key_name[1];
 	}
+	else if (new_slen == 0 && key_name[0] == KS_EXTRA
+						  && key_name[1] == KE_IGNORE)
+	{
+	    /* Do not put K_IGNORE into the buffer, do return KEYLEN_REMOVED
+	     * to indicate what happened. */
+	    retval = KEYLEN_REMOVED;
+	}
 	else
 	{
 	    string[new_slen++] = K_SPECIAL;
@@ -4969,15 +5255,25 @@ check_termcode(max_offset, buf, buflen)
 	    if (extra < 0)
 		/* remove matched characters */
 		mch_memmove(buf + offset, buf + offset - extra,
-					   (size_t)(buflen + offset + extra));
+					   (size_t)(*buflen + offset + extra));
 	    else if (extra > 0)
-		/* insert the extra space we need */
+	    {
+		/* Insert the extra space we need.  If there is insufficient
+		 * space return -1. */
+		if (*buflen + extra + new_slen >= bufsize)
+		    return -1;
 		mch_memmove(buf + offset + extra, buf + offset,
-						   (size_t)(buflen - offset));
+						   (size_t)(*buflen - offset));
+	    }
 	    mch_memmove(buf + offset, string, (size_t)new_slen);
+	    *buflen = *buflen + extra + new_slen;
 	}
-	return (len + extra + offset);
+	return retval == 0 ? (len + extra + offset) : retval;
     }
+
+#ifdef FEAT_TERMRESPONSE
+    LOG_TR("normal character");
+#endif
 
     return 0;			    /* no match found */
 }
@@ -5219,12 +5515,12 @@ find_term_bykeys(src)
     char_u	*src;
 {
     int		i;
-    int		slen;
+    int		slen = (int)STRLEN(src);
 
     for (i = 0; i < tc_len; ++i)
     {
-	slen = termcodes[i].len;
-	if (slen > 1 && STRNCMP(termcodes[i].code, src, (size_t)slen) == 0)
+	if (slen == termcodes[i].len
+			&& STRNCMP(termcodes[i].code, src, (size_t)slen) == 0)
 	    return i;
     }
     return -1;
@@ -5433,6 +5729,13 @@ req_more_codes_from_term()
      * many, there can be a buffer overflow somewhere. */
     while (xt_index_out < xt_index_in + 10 && key_names[xt_index_out] != NULL)
     {
+# ifdef DEBUG_TERMRESPONSE
+	char dbuf[100];
+
+	sprintf(dbuf, "Requesting XT %d: %s",
+				       xt_index_out, key_names[xt_index_out]);
+	log_tr(dbuf);
+# endif
 	sprintf(buf, "\033P+q%02x%02x\033\\",
 		      key_names[xt_index_out][0], key_names[xt_index_out][1]);
 	out_str_nf((char_u *)buf);
@@ -5479,6 +5782,14 @@ got_code_from_term(code, len)
 		break;
 	    }
 	}
+# ifdef DEBUG_TERMRESPONSE
+	{
+	    char buf[100];
+
+	    sprintf(buf, "Received XT %d: %s", xt_index_in, (char *)name);
+	    log_tr(buf);
+	}
+# endif
 	if (key_names[i] != NULL)
 	{
 	    for (i = 8; (c = hexhex2nr(code + i)) >= 0; i += 2)
@@ -5497,7 +5808,17 @@ got_code_from_term(code, len)
 		    set_keep_msg_from_hist();
 		    set_color_count(i);
 		    init_highlight(TRUE, FALSE);
-		    redraw_later(CLEAR);
+#ifdef DEBUG_TERMRESPONSE
+		    {
+			char buf[100];
+			int  r = redraw_asap(CLEAR);
+
+			sprintf(buf, "Received t_Co, redraw_asap(): %d", r);
+			log_tr(buf);
+		    }
+#else
+		    redraw_asap(CLEAR);
+#endif
 		}
 	    }
 	    else

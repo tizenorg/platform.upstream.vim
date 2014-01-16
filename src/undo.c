@@ -81,10 +81,6 @@
 #define UH_MAGIC 0x18dade	/* value for uh_magic when in use */
 #define UE_MAGIC 0xabc123	/* value for ue_magic when in use */
 
-#if defined(MSDOS) || defined(WIN16) || defined(WIN32) || defined(_WIN64)
-# include "vimio.h"	/* for vim_read(), must be before vim.h */
-#endif
-
 #include "vim.h"
 
 static void u_unch_branch __ARGS((u_header_T *uhp));
@@ -220,6 +216,7 @@ u_check(int newhead_may_be_NULL)
 
 /*
  * Save the current line for both the "u" and "U" command.
+ * Careful: may trigger autocommands that reload the buffer.
  * Returns OK or FAIL.
  */
     int
@@ -242,8 +239,9 @@ u_save(top, bot)
     if (undo_off)
 	return OK;
 
-    if (top > curbuf->b_ml.ml_line_count ||
-			    top >= bot || bot > curbuf->b_ml.ml_line_count + 1)
+    if (top > curbuf->b_ml.ml_line_count
+	    || top >= bot
+	    || bot > curbuf->b_ml.ml_line_count + 1)
 	return FALSE;	/* rely on caller to do error messages */
 
     if (top + 2 == bot)
@@ -723,7 +721,7 @@ u_compute_hash(hash)
     char_u		*p;
 
     sha256_start(&ctx);
-    for (lnum = 1; lnum < curbuf->b_ml.ml_line_count; ++lnum)
+    for (lnum = 1; lnum <= curbuf->b_ml.ml_line_count; ++lnum)
     {
 	p = ml_get(lnum);
 	sha256_update(&ctx, p, (UINT32_T)(STRLEN(p) + 1));
@@ -1386,7 +1384,7 @@ u_write_undo(name, forceit, buf, hash)
 		char_u	mbuf[UF_START_MAGIC_LEN];
 		int	len;
 
-		len = vim_read(fd, mbuf, UF_START_MAGIC_LEN);
+		len = read_eintr(fd, mbuf, UF_START_MAGIC_LEN);
 		close(fd);
 		if (len < UF_START_MAGIC_LEN
 		      || memcmp(mbuf, UF_START_MAGIC, UF_START_MAGIC_LEN) != 0)
@@ -1516,8 +1514,10 @@ u_write_undo(name, forceit, buf, hash)
 	write_ok = TRUE;
 #ifdef U_DEBUG
     if (headers_written != buf->b_u_numhead)
-	EMSG3("Written %ld headers, but numhead is %ld",
-					   headers_written, buf->b_u_numhead);
+    {
+	EMSGN("Written %ld headers, ...", headers_written);
+	EMSGN("... but numhead is %ld", buf->b_u_numhead);
+    }
 #endif
 
 write_error:
@@ -1539,6 +1539,7 @@ write_error:
 	/* For systems that support ACL: get the ACL from the original file. */
 	acl = mch_get_acl(buf->b_ffname);
 	mch_set_acl(file_name, acl);
+	mch_free_acl(acl);
     }
 #endif
 
@@ -1861,6 +1862,7 @@ u_read_undo(name, hash, orig_name)
     curbuf->b_u_seq_cur = seq_cur;
     curbuf->b_u_time_cur = seq_time;
     curbuf->b_u_save_nr_last = last_save_nr;
+    curbuf->b_u_save_nr_cur = last_save_nr;
 
     curbuf->b_u_synced = TRUE;
     vim_free(uhp_table);
@@ -2794,7 +2796,7 @@ ex_undolist(eap)
 								uhp->uh_time);
 	    if (uhp->uh_save_nr > 0)
 	    {
-		while (STRLEN(IObuff) < 32)
+		while (STRLEN(IObuff) < 33)
 		    STRCAT(IObuff, " ");
 		vim_snprintf_add((char *)IObuff, IOSIZE,
 						   "  %3ld", uhp->uh_save_nr);
@@ -2849,7 +2851,7 @@ ex_undolist(eap)
 	sort_strings((char_u **)ga.ga_data, ga.ga_len);
 
 	msg_start();
-	msg_puts_attr((char_u *)_("number changes  time            saved"),
+	msg_puts_attr((char_u *)_("number changes  when               saved"),
 							      hl_attr(HLF_T));
 	for (i = 0; i < ga.ga_len && !got_int; ++i)
 	{
@@ -2879,7 +2881,12 @@ u_add_time(buf, buflen, tt)
     if (time(NULL) - tt >= 100)
     {
 	curtime = localtime(&tt);
-	(void)strftime((char *)buf, buflen, "%H:%M:%S", curtime);
+	if (time(NULL) - tt < (60L * 60L * 12L))
+	    /* within 12 hours */
+	    (void)strftime((char *)buf, buflen, "%H:%M:%S", curtime);
+	else
+	    /* longer ago */
+	    (void)strftime((char *)buf, buflen, "%Y/%m/%d %H:%M:%S", curtime);
     }
     else
 #endif
@@ -3299,7 +3306,7 @@ bufIsChanged(buf)
 #ifdef FEAT_QUICKFIX
 	    !bt_dontwrite(buf) &&
 #endif
-	    (buf->b_changed || file_ff_differs(buf));
+	    (buf->b_changed || file_ff_differs(buf, TRUE));
 }
 
     int
@@ -3309,7 +3316,7 @@ curbufIsChanged()
 #ifdef FEAT_QUICKFIX
 	!bt_dontwrite(curbuf) &&
 #endif
-	(curbuf->b_changed || file_ff_differs(curbuf));
+	(curbuf->b_changed || file_ff_differs(curbuf, TRUE));
 }
 
 #if defined(FEAT_EVAL) || defined(PROTO)

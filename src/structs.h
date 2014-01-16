@@ -63,15 +63,16 @@ typedef struct growarray
 
 #define GA_EMPTY    {0, 0, 0, 0, NULL}
 
-/*
- * This is here because regexp.h needs pos_T and below regprog_T is used.
- */
-#include "regexp.h"
-
 typedef struct window_S		win_T;
 typedef struct wininfo_S	wininfo_T;
 typedef struct frame_S		frame_T;
 typedef int			scid_T;		/* script ID */
+typedef struct file_buffer	buf_T;  /* forward declaration */
+
+/*
+ * This is here because regexp.h needs pos_T and below regprog_T is used.
+ */
+#include "regexp.h"
 
 /*
  * This is here because gui.h needs the pos_T and win_T, and win_T needs gui.h
@@ -140,14 +141,22 @@ typedef struct
 #ifdef FEAT_FOLDING
     long	wo_fdc;
 # define w_p_fdc w_onebuf_opt.wo_fdc	/* 'foldcolumn' */
+    int		wo_fdc_save;
+# define w_p_fdc_save w_onebuf_opt.wo_fdc_save	/* 'foldenable' saved for diff mode */
     int		wo_fen;
 # define w_p_fen w_onebuf_opt.wo_fen	/* 'foldenable' */
+    int		wo_fen_save;
+# define w_p_fen_save w_onebuf_opt.wo_fen_save	/* 'foldenable' saved for diff mode */
     char_u	*wo_fdi;
 # define w_p_fdi w_onebuf_opt.wo_fdi	/* 'foldignore' */
     long	wo_fdl;
 # define w_p_fdl w_onebuf_opt.wo_fdl	/* 'foldlevel' */
+    int		wo_fdl_save;
+# define w_p_fdl_save w_onebuf_opt.wo_fdl_save	/* 'foldlevel' state saved for diff mode */
     char_u	*wo_fdm;
 # define w_p_fdm w_onebuf_opt.wo_fdm	/* 'foldmethod' */
+    char_u	*wo_fdm_save;
+# define w_p_fdm_save w_onebuf_opt.wo_fdm_save	/* 'fdm' saved for diff mode */
     long	wo_fml;
 # define w_p_fml w_onebuf_opt.wo_fml	/* 'foldminlines' */
     long	wo_fdn;
@@ -212,9 +221,17 @@ typedef struct
 #ifdef FEAT_SCROLLBIND
     int		wo_scb;
 # define w_p_scb w_onebuf_opt.wo_scb	/* 'scrollbind' */
+    int		wo_diff_saved; /* options were saved for starting diff mode */
+# define w_p_diff_saved w_onebuf_opt.wo_diff_saved
+    int		wo_scb_save;	/* 'scrollbind' saved for diff mode*/
+# define w_p_scb_save w_onebuf_opt.wo_scb_save
 #endif
     int		wo_wrap;
 #define w_p_wrap w_onebuf_opt.wo_wrap	/* 'wrap' */
+#ifdef FEAT_DIFF
+    int		wo_wrap_save;	/* 'wrap' state saved for diff mode*/
+# define w_p_wrap_save w_onebuf_opt.wo_wrap_save
+#endif
 #ifdef FEAT_CONCEAL
     char_u	*wo_cocu;		/* 'concealcursor' */
 # define w_p_cocu w_onebuf_opt.wo_cocu
@@ -224,6 +241,8 @@ typedef struct
 #ifdef FEAT_CURSORBIND
     int		wo_crb;
 # define w_p_crb w_onebuf_opt.wo_crb	/* 'cursorbind' */
+    int		wo_crb_save;	/* 'cursorbind' state saved for diff mode*/
+# define w_p_crb_save w_onebuf_opt.wo_crb_save
 #endif
 
 #ifdef FEAT_EVAL
@@ -378,6 +397,35 @@ typedef struct memfile	    memfile_T;
 typedef long		    blocknr_T;
 
 /*
+ * mf_hashtab_T is a chained hashtable with blocknr_T key and arbitrary
+ * structures as items.  This is an intrusive data structure: we require
+ * that items begin with mf_hashitem_T which contains the key and linked
+ * list pointers.  List of items in each bucket is doubly-linked.
+ */
+
+typedef struct mf_hashitem_S mf_hashitem_T;
+
+struct mf_hashitem_S
+{
+    mf_hashitem_T   *mhi_next;
+    mf_hashitem_T   *mhi_prev;
+    blocknr_T	    mhi_key;
+};
+
+#define MHT_INIT_SIZE   64
+
+typedef struct mf_hashtab_S
+{
+    long_u	    mht_mask;	    /* mask used for hash value (nr of items
+				     * in array is "mht_mask" + 1) */
+    long_u	    mht_count;	    /* nr of items inserted into hashtable */
+    mf_hashitem_T   **mht_buckets;  /* points to mht_small_buckets or
+				     *dynamically allocated array */
+    mf_hashitem_T   *mht_small_buckets[MHT_INIT_SIZE];   /* initial buckets */
+    char	    mht_fixed;	    /* non-zero value forbids growth */
+} mf_hashtab_T;
+
+/*
  * for each (previously) used block in the memfile there is one block header.
  *
  * The block may be linked in the used list OR in the free list.
@@ -394,11 +442,11 @@ typedef long		    blocknr_T;
 
 struct block_hdr
 {
+    mf_hashitem_T bh_hashitem;      /* header for hash table and key */
+#define bh_bnum bh_hashitem.mhi_key /* block number, part of bh_hashitem */
+
     bhdr_T	*bh_next;	    /* next block_hdr in free or used list */
     bhdr_T	*bh_prev;	    /* previous block_hdr in used list */
-    bhdr_T	*bh_hash_next;	    /* next block_hdr in hash list */
-    bhdr_T	*bh_hash_prev;	    /* previous block_hdr in hash list */
-    blocknr_T	bh_bnum;	    /* block number */
     char_u	*bh_data;	    /* pointer to memory (for used block) */
     int		bh_page_count;	    /* number of pages in this block */
 
@@ -417,9 +465,9 @@ typedef struct nr_trans NR_TRANS;
 
 struct nr_trans
 {
-    NR_TRANS	*nt_next;		/* next nr_trans in hash list */
-    NR_TRANS	*nt_prev;		/* previous nr_trans in hash list */
-    blocknr_T	nt_old_bnum;		/* old, negative, number */
+    mf_hashitem_T nt_hashitem;		/* header for hash table and key */
+#define nt_old_bnum nt_hashitem.mhi_key	/* old, negative, number */
+
     blocknr_T	nt_new_bnum;		/* new, positive, number */
 };
 
@@ -463,6 +511,8 @@ typedef struct expand
     int		xp_numfiles;		/* number of files found by
 						    file name completion */
     char_u	**xp_files;		/* list of files */
+    char_u	*xp_line;		/* text being completed */
+    int		xp_col;			/* cursor position in line */
 } expand_T;
 
 /* values for xp_backslash */
@@ -497,14 +547,6 @@ typedef struct
 # endif
 } cmdmod_T;
 
-typedef struct file_buffer buf_T;  /* forward declaration */
-
-/*
- * Simplistic hashing scheme to quickly locate the blocks in the used list.
- * 64 blocks are found directly (64 * 4K = 256K, most files are smaller).
- */
-#define MEMHASHSIZE	64
-#define MEMHASH(nr)	((nr) & (MEMHASHSIZE - 1))
 #define MF_SEED_LEN	8
 
 struct memfile
@@ -517,8 +559,8 @@ struct memfile
     bhdr_T	*mf_used_last;		/* lru block_hdr in used list */
     unsigned	mf_used_count;		/* number of pages in used list */
     unsigned	mf_used_count_max;	/* maximum number of pages in memory */
-    bhdr_T	*mf_hash[MEMHASHSIZE];	/* array of hash lists */
-    NR_TRANS	*mf_trans[MEMHASHSIZE];	/* array of trans lists */
+    mf_hashtab_T mf_hash;		/* hash lists */
+    mf_hashtab_T mf_trans;		/* trans lists */
     blocknr_T	mf_blocknr_max;		/* highest positive block number + 1*/
     blocknr_T	mf_blocknr_min;		/* lowest negative block number - 1 */
     blocknr_T	mf_neg_count;		/* number of negative blocks numbers */
@@ -979,12 +1021,14 @@ typedef struct mapblock mapblock_T;
 struct mapblock
 {
     mapblock_T	*m_next;	/* next mapblock in list */
-    char_u	*m_keys;	/* mapped from */
+    char_u	*m_keys;	/* mapped from, lhs */
+    char_u	*m_str;		/* mapped to, rhs */
+    char_u	*m_orig_str;	/* rhs as entered by the user */
     int		m_keylen;	/* strlen(m_keys) */
-    char_u	*m_str;		/* mapped to */
     int		m_mode;		/* valid mode */
     int		m_noremap;	/* if non-zero no re-mapping for m_str */
     char	m_silent;	/* <silent> used, don't echo commands */
+    char	m_nowait;	/* <nowait> used */
 #ifdef FEAT_EVAL
     char	m_expr;		/* <expr> used, m_str is an expression */
     scid_T	m_script_ID;	/* ID of script where map was defined */
@@ -1082,6 +1126,11 @@ typedef struct
 #define VAR_DICT    5	/* "v_dict" is used */
 #define VAR_FLOAT   6	/* "v_float" is used */
 
+/* Values for "dv_scope". */
+#define VAR_SCOPE     1	/* a:, v:, s:, etc. scope dictionaries */
+#define VAR_DEF_SCOPE 2	/* l:, g: scope dictionaries: here funcrefs are not
+			   allowed to mask existing functions */
+
 /* Values for "v_lock". */
 #define VAR_LOCKED  1	/* locked with lock(), can use unlock() */
 #define VAR_FIXED   2	/* locked forever */
@@ -1152,11 +1201,12 @@ typedef struct dictitem_S dictitem_T;
  */
 struct dictvar_S
 {
-    int		dv_refcount;	/* reference count */
-    hashtab_T	dv_hashtab;	/* hashtab that refers to the items */
-    int		dv_copyID;	/* ID used by deepcopy() */
-    dict_T	*dv_copydict;	/* copied dict used by deepcopy() */
     char	dv_lock;	/* zero, VAR_LOCKED, VAR_FIXED */
+    char	dv_scope;	/* zero, VAR_SCOPE, VAR_DEF_SCOPE */
+    int		dv_refcount;	/* reference count */
+    int		dv_copyID;	/* ID used by deepcopy() */
+    hashtab_T	dv_hashtab;	/* hashtab that refers to the items */
+    dict_T	*dv_copydict;	/* copied dict used by deepcopy() */
     dict_T	*dv_used_next;	/* next dict in used dicts list */
     dict_T	*dv_used_prev;	/* previous dict in used dicts list */
 };
@@ -1177,11 +1227,27 @@ struct dictvar_S
 typedef struct qf_info_S qf_info_T;
 #endif
 
+#ifdef FEAT_PROFILE
+/*
+ * Used for :syntime: timing of executing a syntax pattern.
+ */
+typedef struct {
+    proftime_T	total;		/* total time used */
+    proftime_T	slowest;	/* time of slowest call */
+    long	count;		/* nr of times used */
+    long	match;		/* nr of times matched */
+} syn_time_T;
+#endif
+
+/*
+ * These are items normally related to a buffer.  But when using ":ownsyntax"
+ * a window may have its own instance.
+ */
 typedef struct {
 #ifdef FEAT_SYN_HL
     hashtab_T	b_keywtab;		/* syntax keywords hash table */
     hashtab_T	b_keywtab_ic;		/* idem, ignore case */
-    int		b_syn_error;		/* TRUE when error occured in HL */
+    int		b_syn_error;		/* TRUE when error occurred in HL */
     int		b_syn_ic;		/* ignore case for :syn cmds */
     int		b_syn_spell;		/* SYNSPL_ values */
     garray_T	b_syn_patterns;		/* table for syntax patterns */
@@ -1197,6 +1263,9 @@ typedef struct {
     long	b_syn_sync_linebreaks;	/* offset for multi-line pattern */
     char_u	*b_syn_linecont_pat;	/* line continuation pattern */
     regprog_T	*b_syn_linecont_prog;	/* line continuation program */
+#ifdef FEAT_PROFILE
+    syn_time_T  b_syn_linecont_time;
+#endif
     int		b_syn_linecont_ic;	/* ignore-case flag for above */
     int		b_syn_topgrp;		/* for ":syntax include" */
 # ifdef FEAT_CONCEAL
@@ -1266,6 +1335,10 @@ struct file_buffer
     int		b_nwindows;	/* nr of windows open on this buffer */
 
     int		b_flags;	/* various BF_ flags */
+#ifdef FEAT_AUTOCMD
+    int		b_closing;	/* buffer is being closed, don't let
+				   autocommands close it too. */
+#endif
 
     /*
      * b_ffname has the full path of the file (NULL for no name).
@@ -1506,9 +1579,6 @@ struct file_buffer
     int		b_p_ml_nobin;	/* b_p_ml saved for binary mode */
     int		b_p_ma;		/* 'modifiable' */
     char_u	*b_p_nf;	/* 'nrformats' */
-#ifdef FEAT_OSFILETYPE
-    char_u	*b_p_oft;	/* 'osfiletype' */
-#endif
     int		b_p_pi;		/* 'preserveindent' */
 #ifdef FEAT_TEXTOBJ
     char_u	*b_p_qe;	/* 'quoteescape' */
@@ -1563,6 +1633,9 @@ struct file_buffer
 
     /* end of buffer options */
 
+    linenr_T	b_no_eol_lnum;	/* non-zero lnum when last line of next binary
+				 * write should not have an end-of-line */
+
     int		b_start_eol;	/* last line had eol when it was read */
     int		b_start_ffc;	/* first char of 'ff' when edit started */
 #ifdef FEAT_MBYTE
@@ -1573,7 +1646,7 @@ struct file_buffer
 
 #ifdef FEAT_EVAL
     dictitem_T	b_bufvar;	/* variable for "b:" Dictionary */
-    dict_T	b_vars;		/* internal variables, local to buffer */
+    dict_T	*b_vars;	/* internal variables, local to buffer */
 #endif
 
 #if defined(FEAT_BEVAL) && defined(FEAT_EVAL)
@@ -1719,7 +1792,15 @@ struct tabpage_S
     frame_T	    *(tp_snapshot[SNAP_COUNT]);  /* window layout snapshots */
 #ifdef FEAT_EVAL
     dictitem_T	    tp_winvar;	    /* variable for "t:" Dictionary */
-    dict_T	    tp_vars;	    /* internal variables, local to tab page */
+    dict_T	    *tp_vars;	    /* internal variables, local to tab page */
+#endif
+
+#ifdef FEAT_PYTHON
+    void	    *tp_python_ref;	/* The Python value for this tab page */
+#endif
+
+#ifdef FEAT_PYTHON3
+    void	    *tp_python3_ref;	/* The Python value for this tab page */
 #endif
 };
 
@@ -1822,12 +1903,16 @@ struct window_S
 				       often, keep it the first item!) */
 
 #if defined(FEAT_SYN_HL) || defined(FEAT_SPELL)
-    synblock_T	*w_s;
+    synblock_T	*w_s;		    /* for :ownsyntax */
 #endif
 
 #ifdef FEAT_WINDOWS
     win_T	*w_prev;	    /* link to previous window */
     win_T	*w_next;	    /* link to next window */
+#endif
+#ifdef FEAT_AUTOCMD
+    int		w_closing;	    /* window is being closed, don't let
+				       autocommands close it too. */
 #endif
 
     frame_T	*w_frame;	    /* frame containing this window */
@@ -2038,7 +2123,7 @@ struct window_S
 
 #ifdef FEAT_EVAL
     dictitem_T	w_winvar;	/* variable for "w:" Dictionary */
-    dict_T	w_vars;		/* internal variables, local to window */
+    dict_T	*w_vars;	/* internal variables, local to window */
 #endif
 
 #if defined(FEAT_RIGHTLEFT) && defined(FEAT_FKMAP)
@@ -2338,11 +2423,6 @@ struct VimMenu
 				       get through some tricks) */
     MenuHandle	menu_handle;
     MenuHandle	submenu_handle;
-#endif
-#ifdef RISCOS
-    int		*id;		    /* Not used, but gui.c needs it */
-    int		greyed_out;	    /* Flag */
-    int		hidden;
 #endif
 #ifdef FEAT_GUI_PHOTON
     PtWidget_t	*id;
