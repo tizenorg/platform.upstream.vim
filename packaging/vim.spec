@@ -1,4 +1,3 @@
-%define pkg_version 7.3
 %define official_ptchlvl 566
 %define VIM_SUBDIR vim73
 %define site_runtimepath /usr/share/vim/site
@@ -6,17 +5,15 @@
 Name:           vim
 Version:        7.3
 Release:        0
-License:        VIM LICENSE
-#
+License:        Vim
 Summary:        Vi IMproved
-#
 Url:            http://www.vim.org/
 Group:          Base/Utilities
 Source:         ftp://ftp.vim.org/pub/vim/unix/vim-7.3.tar.bz2
 Source3:        tizen.vimrc
 Source98:       %{name}-7.3-patches.tar.bz2
 Source99:       %{name}-7.3-rpmlintrc
-Source1001: 	vim.manifest
+Source1001:     vim.manifest
 BuildRequires:  autoconf
 BuildRequires:  db4-devel
 BuildRequires:  fdupes
@@ -26,11 +23,9 @@ BuildRequires:  perl
 BuildRequires:  pkgconfig
 BuildRequires:  python-devel
 BuildRequires:  systemd
-Requires(pre):         update-alternatives
-#
 Provides:       vi
 Provides:       vim_client
-#
+Requires(pre):  update-alternatives
 %define vim_prereq %{name}-base = %{version}
 # Explicitly require versioned perl for libperl.so
 %define perl_requires perl = %(rpm -q --qf '%{VERSION}' perl)
@@ -112,9 +107,9 @@ graphical features of vim, you might want to install package gvim too.
 %prep
 %setup -q -n vim73 -b 98
 cp %{SOURCE1001} .
-for p in ../vim-%{pkg_version}-patches/%{pkg_version}*; do
+for p in ../vim-%{version}-patches/%{version}*; do
     test -e $p || break
-    test ${p#*/%{pkg_version}.} -le %{official_ptchlvl} || exit 1
+    test ${p#*/%{version}.} -le %{official_ptchlvl} || exit 1
     echo Patch $p
     patch -s -p0 < $p
 done
@@ -154,14 +149,14 @@ popd
     --disable-perlinterp --disable-pythoninterp \
     --disable-rubyinterp --disable-tclinterp
 sed -i -e 's|define HAVE_DATE_TIME 1|undef HAVE_DATE_TIME|' src/auto/config.h
-make VIMRCLOC=/etc VIMRUNTIMEDIR=/usr/share/vim/current MAKE="make -e" %{?jobs:-j%jobs}
+make VIMRCLOC=/etc VIMRUNTIMEDIR=/usr/share/vim/current MAKE="make -e" %{?_smp_mflags}
 cp src/vim vim-normal
 make distclean
 #
 # build enhanced binary
 %configure ${COMMON_OPTIONS} ${SCRIPT_OPTIONS} --disable-gui
 sed -i -e 's|define HAVE_DATE_TIME 1|undef HAVE_DATE_TIME|' src/auto/config.h
-make VIMRCLOC=/etc VIMRUNTIMEDIR=/usr/share/vim/current MAKE="make -e" %{?jobs:-j%jobs}
+make VIMRCLOC=/etc VIMRUNTIMEDIR=/usr/share/vim/current MAKE="make -e" %{?_smp_mflags}
 cp src/vim vim-enhanced
 #make distclean
 #
@@ -356,9 +351,7 @@ fi
 %{_datadir}/vim/%{VIM_SUBDIR}/spell/*
 %{_datadir}/vim/%{VIM_SUBDIR}/syntax/*
 %exclude %{_datadir}/vim/%{VIM_SUBDIR}/syntax/syntax.vim
-#%{_datadir}/vim/%{VIM_SUBDIR}/tools/blink.c
 %{_datadir}/vim/%{VIM_SUBDIR}/tools/ccfilter.1
-#%{_datadir}/vim/%{VIM_SUBDIR}/tools/ccfilter.c
 %{_datadir}/vim/%{VIM_SUBDIR}/tools/ccfilter_README.txt
 %{_datadir}/vim/%{VIM_SUBDIR}/tools/efm_filter.pl
 %{_datadir}/vim/%{VIM_SUBDIR}/tools/efm_filter.txt
@@ -376,7 +369,6 @@ fi
 %{_datadir}/vim/%{VIM_SUBDIR}/tools/vimspell.sh
 %{_datadir}/vim/%{VIM_SUBDIR}/tools/vimspell.txt
 %{_datadir}/vim/%{VIM_SUBDIR}/tools/vim_vs_net.cmd
-#%{_datadir}/vim/%{VIM_SUBDIR}/tools/xcmdsrv_client.c
 %{_datadir}/vim/%{VIM_SUBDIR}/tutor/*
 %{_datadir}/vim/%{VIM_SUBDIR}/delmenu.vim
 %{_datadir}/vim/%{VIM_SUBDIR}/menu.vim
