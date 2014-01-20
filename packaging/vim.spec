@@ -1,19 +1,19 @@
-%define official_ptchlvl 566
-%define VIM_SUBDIR vim73
+%define official_ptchlvl 155
+%define VIM_SUBDIR vim74
 %define site_runtimepath /usr/share/vim/site
 %define smack 1
 
 Name:           vim
-Version:        7.3
+Version:        7.4
 Release:        0
 License:        Vim
 Summary:        Vi IMproved
 Url:            http://www.vim.org/
 Group:          Base/Utilities
-Source:         ftp://ftp.vim.org/pub/vim/unix/vim-7.3.tar.bz2
+Source:         ftp://ftp.vim.org/pub/vim/unix/vim-7.4.tar.bz2
 Source3:        tizen.vimrc
-Source98:       %{name}-7.3-patches.tar.bz2
-Source99:       %{name}-7.3-rpmlintrc
+Source98:       %{name}-7.4-patches.tar.bz2
+Source99:       %{name}-rpmlintrc
 Source1001:     vim.manifest
 BuildRequires:  autoconf
 BuildRequires:  db4-devel
@@ -109,7 +109,7 @@ install the base package 'vim', for online help, etc. If you need the
 graphical features of vim, you might want to install package gvim too.
 
 %prep
-%setup -q -n vim73 -b 98
+%setup -q -n vim74 -b 98
 cp %{SOURCE1001} .
 for p in ../vim-%{version}-patches/%{version}*; do
     test -e $p || break
@@ -236,7 +236,7 @@ rm -rf %{buildroot}%{_mandir}/it.ISO8859-1/
 rm -rf %{buildroot}%{_mandir}/it.UTF-8/
 rm -rf %{buildroot}%{_mandir}/ru.UTF-8
 # and move russian manpages to a place where they can be found
-rm -rf %{buildroot}%{_mandir}/{fr,it,pl,ru}
+rm -rf %{buildroot}%{_mandir}/{fr,it,pl,ru,ja}
 
 
 # remove some c source files
