@@ -1,3 +1,7 @@
+* Tue Feb 04 2014 Łukasz Stelmach <l.stelmach@samsung.com> upstream/7.4@b5a2483
+- Update to version 7.4 patch level 155
+- Add smack aware behaviour to keep labels
+
 * Thu Feb 21 2013 Anas Nashif <anas.nashif@intel.com> accepted/trunk/20130114.135547@ee3cf07
 - Use /etc/vimrc as system config gile
 
