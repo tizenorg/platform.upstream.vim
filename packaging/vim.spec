@@ -23,7 +23,6 @@ BuildRequires:  ncurses-devel
 BuildRequires:  perl
 BuildRequires:  pkgconfig
 BuildRequires:  python-devel
-BuildRequires:  systemd
 %if %{smack}
 BuildRequires:	libattr-devel
 %endif
