@@ -123,6 +123,9 @@ cp %{SOURCE3}  .
 sed -i -e 's/^XS(XS_/XS_INTERNAL(XS_/' src/if_perl.xs
 
 %build
+export CFLAGS+=" -fvisibility=hidden"
+  export CXXFLAGS+=" -fvisibility=hidden"
+  
 export CFLAGS="%{optflags} -Wall -pipe -fno-strict-aliasing"
 export CFLAGS=${CFLAGS/-D_FORTIFY_SOURCE=2/-D_FORTIFY_SOURCE=1}
 
